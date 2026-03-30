@@ -212,10 +212,15 @@ export default function App() {
   );
 
   const productSalePrice = useMemo(() => {
-    if (!productCostNumber) return 0;
-    return productCostNumber * (1 + productMarginNumber / 100);
-  }, [productCostNumber, productMarginNumber]);
+  if (!productCostNumber) return 0;
 
+  const marginDecimal = productMarginNumber / 100;
+
+  if (marginDecimal >= 1) return 0;
+
+  return productCostNumber / (1 - marginDecimal);
+}, [productCostNumber, productMarginNumber]);
+  
   function resetProductForm() {
     setProductForm(blankProduct);
     setEditingProductId("");
@@ -226,6 +231,11 @@ export default function App() {
       alert("Captura al menos número de parte y nombre corto.");
       return;
     }
+
+    if (Number(productForm.marginInput || 0) >= 100) {
+  alert("El margen de ganancia debe ser menor a 100%.");
+  return;
+}
 
     const payload: Product = {
       id: editingProductId || crypto.randomUUID(),
