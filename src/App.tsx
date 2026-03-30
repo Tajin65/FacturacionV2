@@ -94,9 +94,30 @@ type ClientFormState = {
   notes: string;
 };
 
+type Contact = {
+  id: string;
+  clientId: string;
+  fullName: string;
+  position: string;
+  email: string;
+  phone: string;
+  notes: string;
+};
+
+type ContactFormState = {
+  id: string;
+  clientId: string;
+  fullName: string;
+  position: string;
+  email: string;
+  phone: string;
+  notes: string;
+};
+
 const PRODUCTS_STORAGE_KEY = "facturacionv2_products_v1";
 const EMPLOYEES_STORAGE_KEY = "facturacionv2_employees_v1";
 const CLIENTS_STORAGE_KEY = "facturacionv2_clients_v1";
+const CONTACTS_STORAGE_KEY = "facturacionv2_contacts_v1";
 
 const menuItems: MenuItem[] = [
   { key: "dashboard", label: "Dashboard", description: "Resumen general del sistema" },
@@ -145,6 +166,16 @@ const blankClient: ClientFormState = {
   state: "",
   country: "México",
   creditDaysInput: "",
+  notes: "",
+};
+
+const blankContact: ContactFormState = {
+  id: "",
+  clientId: "",
+  fullName: "",
+  position: "",
+  email: "",
+  phone: "",
   notes: "",
 };
 
@@ -255,6 +286,11 @@ export default function App() {
   const [editingClientId, setEditingClientId] = useState("");
   const [clientSearch, setClientSearch] = useState("");
 
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [contactForm, setContactForm] = useState<ContactFormState>(blankContact);
+  const [editingContactId, setEditingContactId] = useState("");
+  const [contactSearch, setContactSearch] = useState("");
+
   useEffect(() => {
     const saved = localStorage.getItem(PRODUCTS_STORAGE_KEY);
     if (!saved) return;
@@ -296,6 +332,20 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(CLIENTS_STORAGE_KEY, JSON.stringify(clients));
   }, [clients]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(CONTACTS_STORAGE_KEY);
+    if (!saved) return;
+    try {
+      setContacts(JSON.parse(saved));
+    } catch {
+      setContacts([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(contacts));
+  }, [contacts]);
 
   const activeItem = useMemo(
     () => menuItems.find((item) => item.key === activeModule) ?? menuItems[0],
@@ -352,6 +402,24 @@ export default function App() {
         .includes(q)
     );
   }, [clients, clientSearch]);
+
+  const filteredContacts = useMemo(() => {
+    const q = contactSearch.trim().toLowerCase();
+    if (!q) return contacts;
+    return contacts.filter((contact) =>
+      [
+        contact.fullName,
+        contact.position,
+        contact.email,
+        contact.phone,
+        contact.notes,
+        clients.find((client) => client.id === contact.clientId)?.businessName || "",
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(q)
+    );
+  }, [contacts, contactSearch, clients]);
 
   const productCostNumber = useMemo(
     () => Number(productForm.costInput || 0),
@@ -576,6 +644,59 @@ export default function App() {
     if (editingClientId === id) resetClientForm();
   }
 
+  function resetContactForm() {
+    setContactForm(blankContact);
+    setEditingContactId("");
+  }
+
+  function saveContact() {
+    if (!contactForm.clientId || !contactForm.fullName.trim()) {
+      alert("Selecciona un cliente y captura al menos el nombre del contacto.");
+      return;
+    }
+
+    const payload: Contact = {
+      id: editingContactId || crypto.randomUUID(),
+      clientId: contactForm.clientId,
+      fullName: contactForm.fullName.trim(),
+      position: contactForm.position.trim(),
+      email: contactForm.email.trim(),
+      phone: contactForm.phone.trim(),
+      notes: contactForm.notes.trim(),
+    };
+
+    if (editingContactId) {
+      setContacts((prev) =>
+        prev.map((item) => (item.id === editingContactId ? payload : item))
+      );
+    } else {
+      setContacts((prev) => [...prev, payload]);
+    }
+
+    resetContactForm();
+  }
+
+  function editContact(contact: Contact) {
+    setContactForm({
+      id: contact.id,
+      clientId: contact.clientId,
+      fullName: contact.fullName,
+      position: contact.position,
+      email: contact.email,
+      phone: contact.phone,
+      notes: contact.notes,
+    });
+    setEditingContactId(contact.id);
+    setActiveModule("contactos");
+  }
+
+  function deleteContact(id: string) {
+    const confirmed = window.confirm("¿Deseas eliminar este contacto?");
+    if (!confirmed) return;
+    setContacts((prev) => prev.filter((item) => item.id !== id));
+    if (editingContactId === id) resetContactForm();
+  }
+
   const renderContent = () => {
     switch (activeModule) {
       case "dashboard":
@@ -603,7 +724,7 @@ export default function App() {
                   ["Productos", "Catálogo, costo, margen y precio de venta", "En progreso"],
                   ["Empleados", "Equipo y firmas", "En progreso"],
                   ["Clientes", "Base comercial", "En progreso"],
-                  ["Contactos", "Contactos por cliente", "Pendiente"],
+                  ["Contactos", "Contactos por cliente", "En progreso"],
                   ["Cotizaciones", "Generación y partidas", "Pendiente"],
                   ["Facturas proveedor", "Carga CFDI y match", "Pendiente"],
                   ["Mano de obra", "Costo de instalación", "Pendiente"],
@@ -1218,10 +1339,160 @@ export default function App() {
 
       case "contactos":
         return (
-          <EmptyModule
-            title="Contactos"
-            description="Este módulo administrará contactos asociados a clientes, con puesto, email, teléfono y notas para dar seguimiento comercial."
-          />
+          <div className="content-stack">
+            <SectionCard
+              title={editingContactId ? "Editar contacto" : "Alta de contacto"}
+              right={
+                <button className="btn btn-secondary" onClick={resetContactForm}>
+                  Limpiar
+                </button>
+              }
+            >
+              <div className="form-grid">
+                <div className="field">
+                  <label>Cliente</label>
+                  <select
+                    value={contactForm.clientId}
+                    onChange={(e) =>
+                      setContactForm((prev) => ({ ...prev, clientId: e.target.value }))
+                    }
+                  >
+                    <option value="">Selecciona un cliente</option>
+                    {clients.map((client) => (
+                      <option key={client.id} value={client.id}>
+                        {client.businessName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="field">
+                  <label>Nombre completo</label>
+                  <input
+                    value={contactForm.fullName}
+                    onChange={(e) =>
+                      setContactForm((prev) => ({ ...prev, fullName: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Puesto</label>
+                  <input
+                    value={contactForm.position}
+                    onChange={(e) =>
+                      setContactForm((prev) => ({ ...prev, position: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    value={contactForm.email}
+                    onChange={(e) =>
+                      setContactForm((prev) => ({ ...prev, email: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Teléfono</label>
+                  <input
+                    value={contactForm.phone}
+                    onChange={(e) =>
+                      setContactForm((prev) => ({ ...prev, phone: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="field" style={{ gridColumn: "1 / -1" }}>
+                  <label>Notas</label>
+                  <textarea
+                    value={contactForm.notes}
+                    onChange={(e) =>
+                      setContactForm((prev) => ({ ...prev, notes: e.target.value }))
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="button-row">
+                <button className="btn btn-primary" onClick={saveContact}>
+                  {editingContactId ? "Guardar cambios" : "Agregar contacto"}
+                </button>
+                <button className="btn btn-secondary" onClick={resetContactForm}>
+                  Cancelar
+                </button>
+              </div>
+            </SectionCard>
+
+            <SectionCard title="Lista de contactos">
+              <div className="search-box">
+                <div className="field">
+                  <label>Buscar</label>
+                  <input
+                    value={contactSearch}
+                    placeholder="Buscar por contacto, cliente, puesto, email o teléfono"
+                    onChange={(e) => setContactSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="table-wrap">
+                <table className="app-table">
+                  <thead>
+                    <tr>
+                      <th>Cliente</th>
+                      <th>Nombre</th>
+                      <th>Puesto</th>
+                      <th>Email</th>
+                      <th>Teléfono</th>
+                      <th>Notas</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredContacts.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="empty-state">
+                          Todavía no hay contactos registrados.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredContacts.map((contact) => {
+                        const client = clients.find((item) => item.id === contact.clientId);
+                        return (
+                          <tr key={contact.id}>
+                            <td>{client?.businessName || "Cliente no encontrado"}</td>
+                            <td>{contact.fullName}</td>
+                            <td>{contact.position}</td>
+                            <td>{contact.email}</td>
+                            <td>{contact.phone}</td>
+                            <td>{contact.notes}</td>
+                            <td>
+                              <div className="table-actions">
+                                <button className="btn btn-secondary" onClick={() => editContact(contact)}>
+                                  Editar
+                                </button>
+                                <button
+                                  className="btn btn-secondary btn-danger"
+                                  onClick={() => deleteContact(contact.id)}
+                                >
+                                  Eliminar
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </SectionCard>
+          </div>
         );
 
       case "cotizaciones":
