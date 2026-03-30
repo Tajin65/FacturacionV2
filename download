@@ -1,0 +1,2 @@
+import React from "react";
+export default function App(){return <div className='container'><div className='card'><h1>FacturacionV2</h1><p>Proyecto profesional base generado. Incluye estructura, README, .gitignore, configuración para Vite/Railway y queda listo para ampliar módulos.</p><p>En el siguiente paso te conviene subir este repo a GitHub como <strong>FacturacionV2</strong> y luego continuar con iteraciones funcionales.</p></div></div>}
