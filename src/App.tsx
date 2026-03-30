@@ -42,7 +42,28 @@ type ProductFormState = {
   description: string;
 };
 
-const STORAGE_KEY = "facturacionv2_products_v1";
+type Employee = {
+  id: string;
+  fullName: string;
+  initials: string;
+  position: string;
+  email: string;
+  phone: string;
+  signatureText: string;
+};
+
+type EmployeeFormState = {
+  id: string;
+  fullName: string;
+  initials: string;
+  position: string;
+  email: string;
+  phone: string;
+  signatureText: string;
+};
+
+const PRODUCTS_STORAGE_KEY = "facturacionv2_products_v1";
+const EMPLOYEES_STORAGE_KEY = "facturacionv2_employees_v1";
 
 const menuItems: MenuItem[] = [
   { key: "dashboard", label: "Dashboard", description: "Resumen general del sistema" },
@@ -165,19 +186,38 @@ export default function App() {
   const [editingProductId, setEditingProductId] = useState("");
   const [productSearch, setProductSearch] = useState("");
 
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) return;
-    try {
-      setProducts(JSON.parse(saved));
-    } catch {
-      setProducts([]);
-    }
-  }, []);
+const [employees, setEmployees] = useState<Employee[]>([]);
+const [employeeForm, setEmployeeForm] = useState<EmployeeFormState>(blankEmployee);
+const [editingEmployeeId, setEditingEmployeeId] = useState("");
+const [employeeSearch, setEmployeeSearch] = useState("");
+
+useEffect(() => {
+  const saved = localStorage.getItem(PRODUCTS_STORAGE_KEY);
+  if (!saved) return;
+  try {
+    setProducts(JSON.parse(saved));
+  } catch {
+    setProducts([]);
+  }
+}, []);
+
+useEffect(() => {
+  localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(products));
+}, [products]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
-  }, [products]);
+  const saved = localStorage.getItem(EMPLOYEES_STORAGE_KEY);
+  if (!saved) return;
+  try {
+    setEmployees(JSON.parse(saved));
+  } catch {
+    setEmployees([]);
+  }
+}, []);
+
+useEffect(() => {
+  localStorage.setItem(EMPLOYEES_STORAGE_KEY, JSON.stringify(employees));
+}, [employees]);
 
   const activeItem = useMemo(
     () => menuItems.find((item) => item.key === activeModule) ?? menuItems[0],
@@ -200,6 +240,24 @@ export default function App() {
         .includes(q)
     );
   }, [products, productSearch]);
+
+  const filteredEmployees = useMemo(() => {
+  const q = employeeSearch.trim().toLowerCase();
+  if (!q) return employees;
+  return employees.filter((employee) =>
+    [
+      employee.fullName,
+      employee.initials,
+      employee.position,
+      employee.email,
+      employee.phone,
+      employee.signatureText,
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(q)
+  );
+}, [employees, employeeSearch]);
 
   const productCostNumber = useMemo(
     () => Number(productForm.costInput || 0),
@@ -283,7 +341,59 @@ export default function App() {
     setProducts((prev) => prev.filter((item) => item.id !== id));
     if (editingProductId === id) resetProductForm();
   }
+function resetEmployeeForm() {
+  setEmployeeForm(blankEmployee);
+  setEditingEmployeeId("");
+}
 
+function saveEmployee() {
+  if (!employeeForm.fullName.trim() || !employeeForm.initials.trim()) {
+    alert("Captura al menos nombre completo e iniciales.");
+    return;
+  }
+
+  const payload: Employee = {
+    id: editingEmployeeId || crypto.randomUUID(),
+    fullName: employeeForm.fullName.trim(),
+    initials: employeeForm.initials.trim().toUpperCase().slice(0, 6),
+    position: employeeForm.position.trim(),
+    email: employeeForm.email.trim(),
+    phone: employeeForm.phone.trim(),
+    signatureText: employeeForm.signatureText.trim(),
+  };
+
+  if (editingEmployeeId) {
+    setEmployees((prev) =>
+      prev.map((item) => (item.id === editingEmployeeId ? payload : item))
+    );
+  } else {
+    setEmployees((prev) => [...prev, payload]);
+  }
+
+  resetEmployeeForm();
+}
+
+function editEmployee(employee: Employee) {
+  setEmployeeForm({
+    id: employee.id,
+    fullName: employee.fullName,
+    initials: employee.initials,
+    position: employee.position,
+    email: employee.email,
+    phone: employee.phone,
+    signatureText: employee.signatureText,
+  });
+  setEditingEmployeeId(employee.id);
+  setActiveModule("empleados");
+}
+
+function deleteEmployee(id: string) {
+  const confirmed = window.confirm("¿Deseas eliminar este empleado?");
+  if (!confirmed) return;
+  setEmployees((prev) => prev.filter((item) => item.id !== id));
+  if (editingEmployeeId === id) resetEmployeeForm();
+}
+  
   const renderContent = () => {
     switch (activeModule) {
       case "dashboard":
@@ -309,7 +419,7 @@ export default function App() {
                 columns={["Módulo", "Objetivo", "Estado"]}
                 rows={[
                   ["Productos", "Catálogo, costo, margen y precio de venta", "En progreso"],
-                  ["Empleados", "Vendedores, firmas y datos", "Pendiente"],
+                  ["Empleados", "Equipo y firmas", "En progreso"],
                   ["Clientes", "Base comercial", "Pendiente"],
                   ["Contactos", "Contactos por cliente", "Pendiente"],
                   ["Cotizaciones", "Generación y partidas", "Pendiente"],
@@ -507,13 +617,157 @@ export default function App() {
           </div>
         );
 
-      case "empleados":
-        return (
-          <EmptyModule
-            title="Empleados"
-            description="Este módulo permitirá registrar vendedores y personal interno, incluyendo nombre, iniciales, puesto, email, teléfono y firma para cotizaciones."
-          />
-        );
+case "empleados":
+  return (
+    <div className="content-stack">
+      <SectionCard
+        title={editingEmployeeId ? "Editar empleado" : "Alta de empleado"}
+        right={
+          <button className="btn btn-secondary" onClick={resetEmployeeForm}>
+            Limpiar
+          </button>
+        }
+      >
+        <div className="form-grid">
+          <div className="field">
+            <label>Nombre completo</label>
+            <input
+              value={employeeForm.fullName}
+              onChange={(e) =>
+                setEmployeeForm((prev) => ({ ...prev, fullName: e.target.value }))
+              }
+            />
+          </div>
+
+          <div className="field">
+            <label>Iniciales</label>
+            <input
+              value={employeeForm.initials}
+              onChange={(e) =>
+                setEmployeeForm((prev) => ({ ...prev, initials: e.target.value }))
+              }
+            />
+          </div>
+
+          <div className="field">
+            <label>Cargo</label>
+            <input
+              value={employeeForm.position}
+              onChange={(e) =>
+                setEmployeeForm((prev) => ({ ...prev, position: e.target.value }))
+              }
+            />
+          </div>
+
+          <div className="field">
+            <label>Email</label>
+            <input
+              type="email"
+              value={employeeForm.email}
+              onChange={(e) =>
+                setEmployeeForm((prev) => ({ ...prev, email: e.target.value }))
+              }
+            />
+          </div>
+
+          <div className="field">
+            <label>Teléfono</label>
+            <input
+              value={employeeForm.phone}
+              onChange={(e) =>
+                setEmployeeForm((prev) => ({ ...prev, phone: e.target.value }))
+              }
+            />
+          </div>
+
+          <div className="field" style={{ gridColumn: "1 / -1" }}>
+            <label>Firma en texto</label>
+            <input
+              value={employeeForm.signatureText}
+              onChange={(e) =>
+                setEmployeeForm((prev) => ({ ...prev, signatureText: e.target.value }))
+              }
+              placeholder="Ej. Alejandro Chi"
+            />
+          </div>
+        </div>
+
+        <div className="button-row">
+          <button className="btn btn-primary" onClick={saveEmployee}>
+            {editingEmployeeId ? "Guardar cambios" : "Agregar empleado"}
+          </button>
+          <button className="btn btn-secondary" onClick={resetEmployeeForm}>
+            Cancelar
+          </button>
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Lista de empleados">
+        <div className="search-box">
+          <div className="field">
+            <label>Buscar</label>
+            <input
+              value={employeeSearch}
+              placeholder="Buscar por nombre, iniciales, cargo o email"
+              onChange={(e) => setEmployeeSearch(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="table-wrap">
+          <table className="app-table">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Iniciales</th>
+                <th>Cargo</th>
+                <th>Email</th>
+                <th>Teléfono</th>
+                <th>Firma</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredEmployees.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="empty-state">
+                    Todavía no hay empleados registrados.
+                  </td>
+                </tr>
+              ) : (
+                filteredEmployees.map((employee) => (
+                  <tr key={employee.id}>
+                    <td>{employee.fullName}</td>
+                    <td>{employee.initials}</td>
+                    <td>{employee.position}</td>
+                    <td>{employee.email}</td>
+                    <td>{employee.phone}</td>
+                    <td>{employee.signatureText}</td>
+                    <td>
+                      <div className="table-actions">
+                        <button
+                          className="btn btn-secondary"
+                          onClick={() => editEmployee(employee)}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          className="btn btn-secondary btn-danger"
+                          onClick={() => deleteEmployee(employee.id)}
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </SectionCard>
+    </div>
+  );
 
       case "clientes":
         return (
