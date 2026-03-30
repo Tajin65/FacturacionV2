@@ -50,6 +50,7 @@ type Employee = {
   email: string;
   phone: string;
   signatureText: string;
+  signatureImage: string;
 };
 
 type EmployeeFormState = {
@@ -60,6 +61,7 @@ type EmployeeFormState = {
   email: string;
   phone: string;
   signatureText: string;
+  signatureImage: string;
 };
 
 const PRODUCTS_STORAGE_KEY = "facturacionv2_products_v1";
@@ -97,6 +99,7 @@ const blankEmployee: EmployeeFormState = {
   email: "",
   phone: "",
   signatureText: "",
+  signatureImage: "",
 };
 
 function money(value: number, currency: "MXN" | "USD" = "MXN") {
@@ -355,14 +358,15 @@ export default function App() {
     }
 
     const payload: Employee = {
-      id: editingEmployeeId || crypto.randomUUID(),
-      fullName: employeeForm.fullName.trim(),
-      initials: employeeForm.initials.trim().toUpperCase().slice(0, 6),
-      position: employeeForm.position.trim(),
-      email: employeeForm.email.trim(),
-      phone: employeeForm.phone.trim(),
-      signatureText: employeeForm.signatureText.trim(),
-    };
+  id: editingEmployeeId || crypto.randomUUID(),
+  fullName: employeeForm.fullName.trim(),
+  initials: employeeForm.initials.trim().toUpperCase().slice(0, 6),
+  position: employeeForm.position.trim(),
+  email: employeeForm.email.trim(),
+  phone: employeeForm.phone.trim(),
+  signatureText: employeeForm.signatureText.trim(),
+  signatureImage: employeeForm.signatureImage,
+};
 
     if (editingEmployeeId) {
       setEmployees((prev) =>
@@ -376,15 +380,16 @@ export default function App() {
   }
 
   function editEmployee(employee: Employee) {
-    setEmployeeForm({
-      id: employee.id,
-      fullName: employee.fullName,
-      initials: employee.initials,
-      position: employee.position,
-      email: employee.email,
-      phone: employee.phone,
-      signatureText: employee.signatureText,
-    });
+ setEmployeeForm({
+  id: employee.id,
+  fullName: employee.fullName,
+  initials: employee.initials,
+  position: employee.position,
+  email: employee.email,
+  phone: employee.phone,
+  signatureText: employee.signatureText,
+  signatureImage: employee.signatureImage || "",
+});
     setEditingEmployeeId(employee.id);
     setActiveModule("empleados");
   }
@@ -396,6 +401,31 @@ export default function App() {
     if (editingEmployeeId === id) resetEmployeeForm();
   }
 
+  function handleEmployeeSignatureUpload(file: File | null) {
+  if (!file) return;
+
+  const allowedTypes = ["image/png", "image/jpeg", "image/jpg"];
+  if (!allowedTypes.includes(file.type)) {
+    alert("Solo se permiten archivos PNG o JPG/JPEG.");
+    return;
+  }
+
+  if (file.size > 300 * 1024) {
+    alert("La firma es muy pesada. Intenta con una imagen menor a 300 KB.");
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const result = typeof reader.result === "string" ? reader.result : "";
+    setEmployeeForm((prev) => ({
+      ...prev,
+      signatureImage: result,
+    }));
+  };
+  reader.readAsDataURL(file);
+}
+  
   const renderContent = () => {
     switch (activeModule) {
       case "dashboard":
@@ -692,6 +722,49 @@ export default function App() {
                     placeholder="Ej. Alejandro Chi"
                   />
                 </div>
+                <div className="field" style={{ gridColumn: "1 / -1" }}>
+  <label>Firma en imagen (PNG o JPG)</label>
+  <input
+    type="file"
+    accept="image/png,image/jpeg,image/jpg"
+    onChange={(e) => handleEmployeeSignatureUpload(e.target.files?.[0] || null)}
+  />
+</div>
+
+{employeeForm.signatureImage ? (
+  <div className="field" style={{ gridColumn: "1 / -1" }}>
+    <label>Vista previa de firma</label>
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid #dbe4f0",
+        borderRadius: 12,
+        padding: 16,
+        display: "inline-block",
+      }}
+    >
+      <img
+        src={employeeForm.signatureImage}
+        alt="Firma"
+        style={{ maxHeight: 100, maxWidth: 280, display: "block" }}
+      />
+    </div>
+    <div style={{ marginTop: 10 }}>
+      <button
+        type="button"
+        className="btn btn-secondary btn-danger"
+        onClick={() =>
+          setEmployeeForm((prev) => ({
+            ...prev,
+            signatureImage: "",
+          }))
+        }
+      >
+        Quitar firma
+      </button>
+    </div>
+  </div>
+) : null}
               </div>
 
               <div className="button-row">
@@ -725,14 +798,15 @@ export default function App() {
                       <th>Cargo</th>
                       <th>Email</th>
                       <th>Teléfono</th>
-                      <th>Firma</th>
+                      <th>Firma texto</th>
+                      <th>Firma imagen</th>
                       <th>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredEmployees.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="empty-state">
+                        <td colSpan={8} className="empty-state">
                           Todavía no hay empleados registrados.
                         </td>
                       </tr>
@@ -745,6 +819,7 @@ export default function App() {
                           <td>{employee.email}</td>
                           <td>{employee.phone}</td>
                           <td>{employee.signatureText}</td>
+                          <td>{employee.signatureImage ? "Sí" : "No"}</td>
                           <td>
                             <div className="table-actions">
                               <button className="btn btn-secondary" onClick={() => editEmployee(employee)}>
