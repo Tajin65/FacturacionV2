@@ -723,7 +723,7 @@ export default function App() {
                   />
                 </div>
                 <div className="field" style={{ gridColumn: "1 / -1" }}>
-  <label>Firma en imagen (PNG o JPG)</label>
+  <label>Firma en imagen (PNG o JPG, máximo 300 Kb)</label>
   <input
     type="file"
     accept="image/png,image/jpeg,image/jpg"
@@ -819,7 +819,26 @@ export default function App() {
                           <td>{employee.email}</td>
                           <td>{employee.phone}</td>
                           <td>{employee.signatureText}</td>
-                          <td>{employee.signatureImage ? "Sí" : "No"}</td>
+                          <td>
+                            {employee.signatureImage ? (
+                          <img
+                            src={employee.signatureImage}
+                            alt={`Firma de ${employee.fullName}`}
+                            style={{
+                              maxHeight: 42,
+                              maxWidth: 120,
+                              objectFit: "contain",
+                              display: "block",
+                              background: "#fff",
+                              border: "1px solid #dbe4f0",
+                              borderRadius: 8,
+                              padding: 4,
+                            }}
+                            />
+                        ) : (
+                          "Sin firma"
+                        )}
+                          </td>
                           <td>
                             <div className="table-actions">
                               <button className="btn btn-secondary" onClick={() => editEmployee(employee)}>
