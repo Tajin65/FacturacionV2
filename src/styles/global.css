@@ -428,3 +428,13 @@ textarea {
     width: 100%;
   }
 }
+
+.table-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.table-actions .btn {
+  padding: 8px 12px;
+}
