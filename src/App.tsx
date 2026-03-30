@@ -24,7 +24,20 @@ type Product = {
   brand: string;
   model: string;
   cost: number;
-  price: number;
+  marginPercent: number;
+  salePrice: number;
+  currency: "MXN" | "USD";
+  description: string;
+};
+
+type ProductFormState = {
+  id: string;
+  partNumber: string;
+  shortName: string;
+  brand: string;
+  model: string;
+  costInput: string;
+  marginInput: string;
   currency: "MXN" | "USD";
   description: string;
 };
@@ -36,21 +49,21 @@ const menuItems: MenuItem[] = [
   { key: "productos", label: "Productos", description: "Catálogo y precios" },
   { key: "empleados", label: "Empleados", description: "Equipo y firmas" },
   { key: "clientes", label: "Clientes", description: "Base de clientes" },
-  { key: "contactos", label: "Contactos", description: "Contactos por cliente" },
+  { key: "contactos", label: "Contactos por cliente", description: "Seguimiento comercial" },
   { key: "cotizaciones", label: "Cotizaciones", description: "Generación y seguimiento" },
   { key: "facturas", label: "Facturas proveedor", description: "CFDI XML y costos" },
   { key: "mano_obra", label: "Mano de obra", description: "Costo de instalación" },
   { key: "reportes", label: "Reportes", description: "Análisis y exportación" },
 ];
 
-const blankProduct: Product = {
+const blankProduct: ProductFormState = {
   id: "",
   partNumber: "",
   shortName: "",
   brand: "",
   model: "",
-  cost: 0,
-  price: 0,
+  costInput: "",
+  marginInput: "",
   currency: "MXN",
   description: "",
 };
@@ -148,7 +161,7 @@ export default function App() {
   const [activeModule, setActiveModule] = useState<ModuleKey>("dashboard");
 
   const [products, setProducts] = useState<Product[]>([]);
-  const [productForm, setProductForm] = useState<Product>(blankProduct);
+  const [productForm, setProductForm] = useState<ProductFormState>(blankProduct);
   const [editingProductId, setEditingProductId] = useState("");
   const [productSearch, setProductSearch] = useState("");
 
@@ -188,13 +201,20 @@ export default function App() {
     );
   }, [products, productSearch]);
 
-  const productMargin = useMemo(() => {
-    if (!Number(productForm.cost)) return "0.00";
-    return (
-      ((Number(productForm.price) - Number(productForm.cost)) / Number(productForm.cost)) *
-      100
-    ).toFixed(2);
-  }, [productForm.cost, productForm.price]);
+  const productCostNumber = useMemo(
+    () => Number(productForm.costInput || 0),
+    [productForm.costInput]
+  );
+
+  const productMarginNumber = useMemo(
+    () => Number(productForm.marginInput || 0),
+    [productForm.marginInput]
+  );
+
+  const productSalePrice = useMemo(() => {
+    if (!productCostNumber) return 0;
+    return productCostNumber * (1 + productMarginNumber / 100);
+  }, [productCostNumber, productMarginNumber]);
 
   function resetProductForm() {
     setProductForm(blankProduct);
@@ -207,27 +227,42 @@ export default function App() {
       return;
     }
 
+    const payload: Product = {
+      id: editingProductId || crypto.randomUUID(),
+      partNumber: productForm.partNumber.trim(),
+      shortName: productForm.shortName.trim(),
+      brand: productForm.brand.trim(),
+      model: productForm.model.trim(),
+      cost: Number(productForm.costInput || 0),
+      marginPercent: Number(productForm.marginInput || 0),
+      salePrice: productSalePrice,
+      currency: productForm.currency,
+      description: productForm.description.trim(),
+    };
+
     if (editingProductId) {
       setProducts((prev) =>
-        prev.map((item) =>
-          item.id === editingProductId ? { ...productForm, id: editingProductId } : item
-        )
+        prev.map((item) => (item.id === editingProductId ? payload : item))
       );
     } else {
-      setProducts((prev) => [
-        ...prev,
-        {
-          ...productForm,
-          id: crypto.randomUUID(),
-        },
-      ]);
+      setProducts((prev) => [...prev, payload]);
     }
 
     resetProductForm();
   }
 
   function editProduct(product: Product) {
-    setProductForm(product);
+    setProductForm({
+      id: product.id,
+      partNumber: product.partNumber,
+      shortName: product.shortName,
+      brand: product.brand,
+      model: product.model,
+      costInput: String(product.cost),
+      marginInput: String(product.marginPercent),
+      currency: product.currency,
+      description: product.description,
+    });
     setEditingProductId(product.id);
     setActiveModule("productos");
   }
@@ -263,7 +298,7 @@ export default function App() {
               <PlaceholderTable
                 columns={["Módulo", "Objetivo", "Estado"]}
                 rows={[
-                  ["Productos", "Catálogo, costo, precio y moneda", "En progreso"],
+                  ["Productos", "Catálogo, costo, margen y precio de venta", "En progreso"],
                   ["Empleados", "Vendedores, firmas y datos", "Pendiente"],
                   ["Clientes", "Base comercial", "Pendiente"],
                   ["Contactos", "Contactos por cliente", "Pendiente"],
@@ -348,27 +383,29 @@ export default function App() {
                   <label>Costo</label>
                   <input
                     type="number"
-                    value={productForm.cost}
+                    value={productForm.costInput}
                     onChange={(e) =>
-                      setProductForm((prev) => ({ ...prev, cost: Number(e.target.value) }))
+                      setProductForm((prev) => ({ ...prev, costInput: e.target.value }))
                     }
                   />
                 </div>
 
                 <div className="field">
-                  <label>Precio</label>
+                  <label>Margen de ganancia %</label>
                   <input
                     type="number"
-                    value={productForm.price}
+                    value={productForm.marginInput}
                     onChange={(e) =>
-                      setProductForm((prev) => ({ ...prev, price: Number(e.target.value) }))
+                      setProductForm((prev) => ({ ...prev, marginInput: e.target.value }))
                     }
                   />
                 </div>
 
                 <div className="info-box">
-                  <div className="info-box-label">Margen estimado</div>
-                  <div className="info-box-value">{productMargin}%</div>
+                  <div className="info-box-label">Precio de venta</div>
+                  <div className="info-box-value">
+                    {money(productSalePrice, productForm.currency)}
+                  </div>
                 </div>
 
                 <div className="field" style={{ gridColumn: "1 / -1" }}>
@@ -413,7 +450,8 @@ export default function App() {
                       <th>Marca</th>
                       <th>Modelo</th>
                       <th>Costo</th>
-                      <th>Precio</th>
+                      <th>Margen %</th>
+                      <th>Precio de venta</th>
                       <th>Moneda</th>
                       <th>Acciones</th>
                     </tr>
@@ -421,7 +459,7 @@ export default function App() {
                   <tbody>
                     {filteredProducts.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="empty-state">
+                        <td colSpan={9} className="empty-state">
                           Todavía no hay productos registrados.
                         </td>
                       </tr>
@@ -433,7 +471,8 @@ export default function App() {
                           <td>{product.brand}</td>
                           <td>{product.model}</td>
                           <td>{money(product.cost, product.currency)}</td>
-                          <td>{money(product.price, product.currency)}</td>
+                          <td>{product.marginPercent.toFixed(2)}%</td>
+                          <td>{money(product.salePrice, product.currency)}</td>
                           <td>{product.currency}</td>
                           <td>
                             <div className="button-row" style={{ marginTop: 0 }}>
