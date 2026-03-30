@@ -475,7 +475,7 @@ export default function App() {
                           <td>{money(product.salePrice, product.currency)}</td>
                           <td>{product.currency}</td>
                           <td>
-                            <div className="button-row" style={{ marginTop: 0 }}>
+                            <div className="table-actions">
                               <button className="btn btn-secondary" onClick={() => editProduct(product)}>
                                 Editar
                               </button>
