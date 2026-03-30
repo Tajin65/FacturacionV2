@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 type ModuleKey =
   | "dashboard"
@@ -17,6 +17,20 @@ type MenuItem = {
   description: string;
 };
 
+type Product = {
+  id: string;
+  partNumber: string;
+  shortName: string;
+  brand: string;
+  model: string;
+  cost: number;
+  price: number;
+  currency: "MXN" | "USD";
+  description: string;
+};
+
+const STORAGE_KEY = "facturacionv2_products_v1";
+
 const menuItems: MenuItem[] = [
   { key: "dashboard", label: "Dashboard", description: "Resumen general del sistema" },
   { key: "productos", label: "Productos", description: "Catálogo y precios" },
@@ -28,6 +42,26 @@ const menuItems: MenuItem[] = [
   { key: "mano_obra", label: "Mano de obra", description: "Costo de instalación" },
   { key: "reportes", label: "Reportes", description: "Análisis y exportación" },
 ];
+
+const blankProduct: Product = {
+  id: "",
+  partNumber: "",
+  shortName: "",
+  brand: "",
+  model: "",
+  cost: 0,
+  price: 0,
+  currency: "MXN",
+  description: "",
+};
+
+function money(value: number, currency: "MXN" | "USD" = "MXN") {
+  return new Intl.NumberFormat(currency === "USD" ? "en-US" : "es-MX", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0));
+}
 
 function StatCard({
   title,
@@ -113,10 +147,97 @@ function EmptyModule({
 export default function App() {
   const [activeModule, setActiveModule] = useState<ModuleKey>("dashboard");
 
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productForm, setProductForm] = useState<Product>(blankProduct);
+  const [editingProductId, setEditingProductId] = useState("");
+  const [productSearch, setProductSearch] = useState("");
+
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return;
+    try {
+      setProducts(JSON.parse(saved));
+    } catch {
+      setProducts([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
+  }, [products]);
+
   const activeItem = useMemo(
     () => menuItems.find((item) => item.key === activeModule) ?? menuItems[0],
     [activeModule]
   );
+
+  const filteredProducts = useMemo(() => {
+    const q = productSearch.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter((product) =>
+      [
+        product.partNumber,
+        product.shortName,
+        product.brand,
+        product.model,
+        product.description,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(q)
+    );
+  }, [products, productSearch]);
+
+  const productMargin = useMemo(() => {
+    if (!Number(productForm.cost)) return "0.00";
+    return (
+      ((Number(productForm.price) - Number(productForm.cost)) / Number(productForm.cost)) *
+      100
+    ).toFixed(2);
+  }, [productForm.cost, productForm.price]);
+
+  function resetProductForm() {
+    setProductForm(blankProduct);
+    setEditingProductId("");
+  }
+
+  function saveProduct() {
+    if (!productForm.partNumber.trim() || !productForm.shortName.trim()) {
+      alert("Captura al menos número de parte y nombre corto.");
+      return;
+    }
+
+    if (editingProductId) {
+      setProducts((prev) =>
+        prev.map((item) =>
+          item.id === editingProductId ? { ...productForm, id: editingProductId } : item
+        )
+      );
+    } else {
+      setProducts((prev) => [
+        ...prev,
+        {
+          ...productForm,
+          id: crypto.randomUUID(),
+        },
+      ]);
+    }
+
+    resetProductForm();
+  }
+
+  function editProduct(product: Product) {
+    setProductForm(product);
+    setEditingProductId(product.id);
+    setActiveModule("productos");
+  }
+
+  function deleteProduct(id: string) {
+    const confirmed = window.confirm("¿Deseas eliminar este producto?");
+    if (!confirmed) return;
+    setProducts((prev) => prev.filter((item) => item.id !== id));
+    if (editingProductId === id) resetProductForm();
+  }
 
   const renderContent = () => {
     switch (activeModule) {
@@ -142,7 +263,7 @@ export default function App() {
               <PlaceholderTable
                 columns={["Módulo", "Objetivo", "Estado"]}
                 rows={[
-                  ["Productos", "Catálogo, costo, precio y moneda", "Siguiente"],
+                  ["Productos", "Catálogo, costo, precio y moneda", "En progreso"],
                   ["Empleados", "Vendedores, firmas y datos", "Pendiente"],
                   ["Clientes", "Base comercial", "Pendiente"],
                   ["Contactos", "Contactos por cliente", "Pendiente"],
@@ -157,10 +278,184 @@ export default function App() {
 
       case "productos":
         return (
-          <EmptyModule
-            title="Productos"
-            description="Aquí construiremos el catálogo de productos con número de parte, marca, modelo, costo, precio, moneda y descripción. También dejaremos lista la base para usar los productos dentro de cotizaciones."
-          />
+          <div className="content-stack">
+            <SectionCard
+              title={editingProductId ? "Editar producto" : "Alta de producto"}
+              right={
+                <button className="btn btn-secondary" onClick={resetProductForm}>
+                  Limpiar
+                </button>
+              }
+            >
+              <div className="form-grid">
+                <div className="field">
+                  <label>Número de parte</label>
+                  <input
+                    value={productForm.partNumber}
+                    onChange={(e) =>
+                      setProductForm((prev) => ({ ...prev, partNumber: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Nombre corto</label>
+                  <input
+                    value={productForm.shortName}
+                    onChange={(e) =>
+                      setProductForm((prev) => ({ ...prev, shortName: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Marca</label>
+                  <input
+                    value={productForm.brand}
+                    onChange={(e) =>
+                      setProductForm((prev) => ({ ...prev, brand: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Modelo</label>
+                  <input
+                    value={productForm.model}
+                    onChange={(e) =>
+                      setProductForm((prev) => ({ ...prev, model: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Moneda</label>
+                  <select
+                    value={productForm.currency}
+                    onChange={(e) =>
+                      setProductForm((prev) => ({
+                        ...prev,
+                        currency: e.target.value as "MXN" | "USD",
+                      }))
+                    }
+                  >
+                    <option value="MXN">MXN</option>
+                    <option value="USD">USD</option>
+                  </select>
+                </div>
+
+                <div className="field">
+                  <label>Costo</label>
+                  <input
+                    type="number"
+                    value={productForm.cost}
+                    onChange={(e) =>
+                      setProductForm((prev) => ({ ...prev, cost: Number(e.target.value) }))
+                    }
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Precio</label>
+                  <input
+                    type="number"
+                    value={productForm.price}
+                    onChange={(e) =>
+                      setProductForm((prev) => ({ ...prev, price: Number(e.target.value) }))
+                    }
+                  />
+                </div>
+
+                <div className="info-box">
+                  <div className="info-box-label">Margen estimado</div>
+                  <div className="info-box-value">{productMargin}%</div>
+                </div>
+
+                <div className="field" style={{ gridColumn: "1 / -1" }}>
+                  <label>Descripción</label>
+                  <textarea
+                    value={productForm.description}
+                    onChange={(e) =>
+                      setProductForm((prev) => ({ ...prev, description: e.target.value }))
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="button-row">
+                <button className="btn btn-primary" onClick={saveProduct}>
+                  {editingProductId ? "Guardar cambios" : "Agregar producto"}
+                </button>
+                <button className="btn btn-secondary" onClick={resetProductForm}>
+                  Cancelar
+                </button>
+              </div>
+            </SectionCard>
+
+            <SectionCard title="Catálogo de productos">
+              <div className="search-box">
+                <div className="field">
+                  <label>Buscar</label>
+                  <input
+                    value={productSearch}
+                    placeholder="Buscar por parte, nombre, marca o modelo"
+                    onChange={(e) => setProductSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="table-wrap">
+                <table className="app-table">
+                  <thead>
+                    <tr>
+                      <th>No. parte</th>
+                      <th>Nombre</th>
+                      <th>Marca</th>
+                      <th>Modelo</th>
+                      <th>Costo</th>
+                      <th>Precio</th>
+                      <th>Moneda</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredProducts.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="empty-state">
+                          Todavía no hay productos registrados.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredProducts.map((product) => (
+                        <tr key={product.id}>
+                          <td>{product.partNumber}</td>
+                          <td>{product.shortName}</td>
+                          <td>{product.brand}</td>
+                          <td>{product.model}</td>
+                          <td>{money(product.cost, product.currency)}</td>
+                          <td>{money(product.price, product.currency)}</td>
+                          <td>{product.currency}</td>
+                          <td>
+                            <div className="button-row" style={{ marginTop: 0 }}>
+                              <button className="btn btn-secondary" onClick={() => editProduct(product)}>
+                                Editar
+                              </button>
+                              <button
+                                className="btn btn-secondary btn-danger"
+                                onClick={() => deleteProduct(product.id)}
+                              >
+                                Eliminar
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </SectionCard>
+          </div>
         );
 
       case "empleados":
