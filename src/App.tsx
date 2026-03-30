@@ -89,6 +89,16 @@ const blankProduct: ProductFormState = {
   description: "",
 };
 
+const blankEmployee: EmployeeFormState = {
+  id: "",
+  fullName: "",
+  initials: "",
+  position: "",
+  email: "",
+  phone: "",
+  signatureText: "",
+};
+
 function money(value: number, currency: "MXN" | "USD" = "MXN") {
   return new Intl.NumberFormat(currency === "USD" ? "en-US" : "es-MX", {
     style: "currency",
@@ -186,38 +196,38 @@ export default function App() {
   const [editingProductId, setEditingProductId] = useState("");
   const [productSearch, setProductSearch] = useState("");
 
-const [employees, setEmployees] = useState<Employee[]>([]);
-const [employeeForm, setEmployeeForm] = useState<EmployeeFormState>(blankEmployee);
-const [editingEmployeeId, setEditingEmployeeId] = useState("");
-const [employeeSearch, setEmployeeSearch] = useState("");
-
-useEffect(() => {
-  const saved = localStorage.getItem(PRODUCTS_STORAGE_KEY);
-  if (!saved) return;
-  try {
-    setProducts(JSON.parse(saved));
-  } catch {
-    setProducts([]);
-  }
-}, []);
-
-useEffect(() => {
-  localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(products));
-}, [products]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employeeForm, setEmployeeForm] = useState<EmployeeFormState>(blankEmployee);
+  const [editingEmployeeId, setEditingEmployeeId] = useState("");
+  const [employeeSearch, setEmployeeSearch] = useState("");
 
   useEffect(() => {
-  const saved = localStorage.getItem(EMPLOYEES_STORAGE_KEY);
-  if (!saved) return;
-  try {
-    setEmployees(JSON.parse(saved));
-  } catch {
-    setEmployees([]);
-  }
-}, []);
+    const saved = localStorage.getItem(PRODUCTS_STORAGE_KEY);
+    if (!saved) return;
+    try {
+      setProducts(JSON.parse(saved));
+    } catch {
+      setProducts([]);
+    }
+  }, []);
 
-useEffect(() => {
-  localStorage.setItem(EMPLOYEES_STORAGE_KEY, JSON.stringify(employees));
-}, [employees]);
+  useEffect(() => {
+    localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(products));
+  }, [products]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(EMPLOYEES_STORAGE_KEY);
+    if (!saved) return;
+    try {
+      setEmployees(JSON.parse(saved));
+    } catch {
+      setEmployees([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(EMPLOYEES_STORAGE_KEY, JSON.stringify(employees));
+  }, [employees]);
 
   const activeItem = useMemo(
     () => menuItems.find((item) => item.key === activeModule) ?? menuItems[0],
@@ -228,13 +238,7 @@ useEffect(() => {
     const q = productSearch.trim().toLowerCase();
     if (!q) return products;
     return products.filter((product) =>
-      [
-        product.partNumber,
-        product.shortName,
-        product.brand,
-        product.model,
-        product.description,
-      ]
+      [product.partNumber, product.shortName, product.brand, product.model, product.description]
         .join(" ")
         .toLowerCase()
         .includes(q)
@@ -242,22 +246,22 @@ useEffect(() => {
   }, [products, productSearch]);
 
   const filteredEmployees = useMemo(() => {
-  const q = employeeSearch.trim().toLowerCase();
-  if (!q) return employees;
-  return employees.filter((employee) =>
-    [
-      employee.fullName,
-      employee.initials,
-      employee.position,
-      employee.email,
-      employee.phone,
-      employee.signatureText,
-    ]
-      .join(" ")
-      .toLowerCase()
-      .includes(q)
-  );
-}, [employees, employeeSearch]);
+    const q = employeeSearch.trim().toLowerCase();
+    if (!q) return employees;
+    return employees.filter((employee) =>
+      [
+        employee.fullName,
+        employee.initials,
+        employee.position,
+        employee.email,
+        employee.phone,
+        employee.signatureText,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(q)
+    );
+  }, [employees, employeeSearch]);
 
   const productCostNumber = useMemo(
     () => Number(productForm.costInput || 0),
@@ -270,15 +274,12 @@ useEffect(() => {
   );
 
   const productSalePrice = useMemo(() => {
-  if (!productCostNumber) return 0;
+    if (!productCostNumber) return 0;
+    const marginDecimal = productMarginNumber / 100;
+    if (marginDecimal >= 1) return 0;
+    return productCostNumber / (1 - marginDecimal);
+  }, [productCostNumber, productMarginNumber]);
 
-  const marginDecimal = productMarginNumber / 100;
-
-  if (marginDecimal >= 1) return 0;
-
-  return productCostNumber / (1 - marginDecimal);
-}, [productCostNumber, productMarginNumber]);
-  
   function resetProductForm() {
     setProductForm(blankProduct);
     setEditingProductId("");
@@ -291,9 +292,9 @@ useEffect(() => {
     }
 
     if (Number(productForm.marginInput || 0) >= 100) {
-  alert("El margen de ganancia debe ser menor a 100%.");
-  return;
-}
+      alert("El margen de ganancia debe ser menor a 100%.");
+      return;
+    }
 
     const payload: Product = {
       id: editingProductId || crypto.randomUUID(),
@@ -341,59 +342,60 @@ useEffect(() => {
     setProducts((prev) => prev.filter((item) => item.id !== id));
     if (editingProductId === id) resetProductForm();
   }
-function resetEmployeeForm() {
-  setEmployeeForm(blankEmployee);
-  setEditingEmployeeId("");
-}
 
-function saveEmployee() {
-  if (!employeeForm.fullName.trim() || !employeeForm.initials.trim()) {
-    alert("Captura al menos nombre completo e iniciales.");
-    return;
+  function resetEmployeeForm() {
+    setEmployeeForm(blankEmployee);
+    setEditingEmployeeId("");
   }
 
-  const payload: Employee = {
-    id: editingEmployeeId || crypto.randomUUID(),
-    fullName: employeeForm.fullName.trim(),
-    initials: employeeForm.initials.trim().toUpperCase().slice(0, 6),
-    position: employeeForm.position.trim(),
-    email: employeeForm.email.trim(),
-    phone: employeeForm.phone.trim(),
-    signatureText: employeeForm.signatureText.trim(),
-  };
+  function saveEmployee() {
+    if (!employeeForm.fullName.trim() || !employeeForm.initials.trim()) {
+      alert("Captura al menos nombre completo e iniciales.");
+      return;
+    }
 
-  if (editingEmployeeId) {
-    setEmployees((prev) =>
-      prev.map((item) => (item.id === editingEmployeeId ? payload : item))
-    );
-  } else {
-    setEmployees((prev) => [...prev, payload]);
+    const payload: Employee = {
+      id: editingEmployeeId || crypto.randomUUID(),
+      fullName: employeeForm.fullName.trim(),
+      initials: employeeForm.initials.trim().toUpperCase().slice(0, 6),
+      position: employeeForm.position.trim(),
+      email: employeeForm.email.trim(),
+      phone: employeeForm.phone.trim(),
+      signatureText: employeeForm.signatureText.trim(),
+    };
+
+    if (editingEmployeeId) {
+      setEmployees((prev) =>
+        prev.map((item) => (item.id === editingEmployeeId ? payload : item))
+      );
+    } else {
+      setEmployees((prev) => [...prev, payload]);
+    }
+
+    resetEmployeeForm();
   }
 
-  resetEmployeeForm();
-}
+  function editEmployee(employee: Employee) {
+    setEmployeeForm({
+      id: employee.id,
+      fullName: employee.fullName,
+      initials: employee.initials,
+      position: employee.position,
+      email: employee.email,
+      phone: employee.phone,
+      signatureText: employee.signatureText,
+    });
+    setEditingEmployeeId(employee.id);
+    setActiveModule("empleados");
+  }
 
-function editEmployee(employee: Employee) {
-  setEmployeeForm({
-    id: employee.id,
-    fullName: employee.fullName,
-    initials: employee.initials,
-    position: employee.position,
-    email: employee.email,
-    phone: employee.phone,
-    signatureText: employee.signatureText,
-  });
-  setEditingEmployeeId(employee.id);
-  setActiveModule("empleados");
-}
+  function deleteEmployee(id: string) {
+    const confirmed = window.confirm("¿Deseas eliminar este empleado?");
+    if (!confirmed) return;
+    setEmployees((prev) => prev.filter((item) => item.id !== id));
+    if (editingEmployeeId === id) resetEmployeeForm();
+  }
 
-function deleteEmployee(id: string) {
-  const confirmed = window.confirm("¿Deseas eliminar este empleado?");
-  if (!confirmed) return;
-  setEmployees((prev) => prev.filter((item) => item.id !== id));
-  if (editingEmployeeId === id) resetEmployeeForm();
-}
-  
   const renderContent = () => {
     switch (activeModule) {
       case "dashboard":
@@ -617,157 +619,154 @@ function deleteEmployee(id: string) {
           </div>
         );
 
-case "empleados":
-  return (
-    <div className="content-stack">
-      <SectionCard
-        title={editingEmployeeId ? "Editar empleado" : "Alta de empleado"}
-        right={
-          <button className="btn btn-secondary" onClick={resetEmployeeForm}>
-            Limpiar
-          </button>
-        }
-      >
-        <div className="form-grid">
-          <div className="field">
-            <label>Nombre completo</label>
-            <input
-              value={employeeForm.fullName}
-              onChange={(e) =>
-                setEmployeeForm((prev) => ({ ...prev, fullName: e.target.value }))
+      case "empleados":
+        return (
+          <div className="content-stack">
+            <SectionCard
+              title={editingEmployeeId ? "Editar empleado" : "Alta de empleado"}
+              right={
+                <button className="btn btn-secondary" onClick={resetEmployeeForm}>
+                  Limpiar
+                </button>
               }
-            />
+            >
+              <div className="form-grid">
+                <div className="field">
+                  <label>Nombre completo</label>
+                  <input
+                    value={employeeForm.fullName}
+                    onChange={(e) =>
+                      setEmployeeForm((prev) => ({ ...prev, fullName: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Iniciales</label>
+                  <input
+                    value={employeeForm.initials}
+                    onChange={(e) =>
+                      setEmployeeForm((prev) => ({ ...prev, initials: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Cargo</label>
+                  <input
+                    value={employeeForm.position}
+                    onChange={(e) =>
+                      setEmployeeForm((prev) => ({ ...prev, position: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    value={employeeForm.email}
+                    onChange={(e) =>
+                      setEmployeeForm((prev) => ({ ...prev, email: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Teléfono</label>
+                  <input
+                    value={employeeForm.phone}
+                    onChange={(e) =>
+                      setEmployeeForm((prev) => ({ ...prev, phone: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="field" style={{ gridColumn: "1 / -1" }}>
+                  <label>Firma en texto</label>
+                  <input
+                    value={employeeForm.signatureText}
+                    onChange={(e) =>
+                      setEmployeeForm((prev) => ({ ...prev, signatureText: e.target.value }))
+                    }
+                    placeholder="Ej. Alejandro Chi"
+                  />
+                </div>
+              </div>
+
+              <div className="button-row">
+                <button className="btn btn-primary" onClick={saveEmployee}>
+                  {editingEmployeeId ? "Guardar cambios" : "Agregar empleado"}
+                </button>
+                <button className="btn btn-secondary" onClick={resetEmployeeForm}>
+                  Cancelar
+                </button>
+              </div>
+            </SectionCard>
+
+            <SectionCard title="Lista de empleados">
+              <div className="search-box">
+                <div className="field">
+                  <label>Buscar</label>
+                  <input
+                    value={employeeSearch}
+                    placeholder="Buscar por nombre, iniciales, cargo o email"
+                    onChange={(e) => setEmployeeSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="table-wrap">
+                <table className="app-table">
+                  <thead>
+                    <tr>
+                      <th>Nombre</th>
+                      <th>Iniciales</th>
+                      <th>Cargo</th>
+                      <th>Email</th>
+                      <th>Teléfono</th>
+                      <th>Firma</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredEmployees.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="empty-state">
+                          Todavía no hay empleados registrados.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredEmployees.map((employee) => (
+                        <tr key={employee.id}>
+                          <td>{employee.fullName}</td>
+                          <td>{employee.initials}</td>
+                          <td>{employee.position}</td>
+                          <td>{employee.email}</td>
+                          <td>{employee.phone}</td>
+                          <td>{employee.signatureText}</td>
+                          <td>
+                            <div className="table-actions">
+                              <button className="btn btn-secondary" onClick={() => editEmployee(employee)}>
+                                Editar
+                              </button>
+                              <button
+                                className="btn btn-secondary btn-danger"
+                                onClick={() => deleteEmployee(employee.id)}
+                              >
+                                Eliminar
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </SectionCard>
           </div>
-
-          <div className="field">
-            <label>Iniciales</label>
-            <input
-              value={employeeForm.initials}
-              onChange={(e) =>
-                setEmployeeForm((prev) => ({ ...prev, initials: e.target.value }))
-              }
-            />
-          </div>
-
-          <div className="field">
-            <label>Cargo</label>
-            <input
-              value={employeeForm.position}
-              onChange={(e) =>
-                setEmployeeForm((prev) => ({ ...prev, position: e.target.value }))
-              }
-            />
-          </div>
-
-          <div className="field">
-            <label>Email</label>
-            <input
-              type="email"
-              value={employeeForm.email}
-              onChange={(e) =>
-                setEmployeeForm((prev) => ({ ...prev, email: e.target.value }))
-              }
-            />
-          </div>
-
-          <div className="field">
-            <label>Teléfono</label>
-            <input
-              value={employeeForm.phone}
-              onChange={(e) =>
-                setEmployeeForm((prev) => ({ ...prev, phone: e.target.value }))
-              }
-            />
-          </div>
-
-          <div className="field" style={{ gridColumn: "1 / -1" }}>
-            <label>Firma en texto</label>
-            <input
-              value={employeeForm.signatureText}
-              onChange={(e) =>
-                setEmployeeForm((prev) => ({ ...prev, signatureText: e.target.value }))
-              }
-              placeholder="Ej. Alejandro Chi"
-            />
-          </div>
-        </div>
-
-        <div className="button-row">
-          <button className="btn btn-primary" onClick={saveEmployee}>
-            {editingEmployeeId ? "Guardar cambios" : "Agregar empleado"}
-          </button>
-          <button className="btn btn-secondary" onClick={resetEmployeeForm}>
-            Cancelar
-          </button>
-        </div>
-      </SectionCard>
-
-      <SectionCard title="Lista de empleados">
-        <div className="search-box">
-          <div className="field">
-            <label>Buscar</label>
-            <input
-              value={employeeSearch}
-              placeholder="Buscar por nombre, iniciales, cargo o email"
-              onChange={(e) => setEmployeeSearch(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="table-wrap">
-          <table className="app-table">
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Iniciales</th>
-                <th>Cargo</th>
-                <th>Email</th>
-                <th>Teléfono</th>
-                <th>Firma</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredEmployees.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="empty-state">
-                    Todavía no hay empleados registrados.
-                  </td>
-                </tr>
-              ) : (
-                filteredEmployees.map((employee) => (
-                  <tr key={employee.id}>
-                    <td>{employee.fullName}</td>
-                    <td>{employee.initials}</td>
-                    <td>{employee.position}</td>
-                    <td>{employee.email}</td>
-                    <td>{employee.phone}</td>
-                    <td>{employee.signatureText}</td>
-                    <td>
-                      <div className="table-actions">
-                        <button
-                          className="btn btn-secondary"
-                          onClick={() => editEmployee(employee)}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          className="btn btn-secondary btn-danger"
-                          onClick={() => deleteEmployee(employee.id)}
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </SectionCard>
-    </div>
-  );
+        );
 
       case "clientes":
         return (
