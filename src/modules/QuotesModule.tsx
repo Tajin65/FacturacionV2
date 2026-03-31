@@ -101,6 +101,31 @@ export default function QuotesModule() {
     [quoteSubtotal, taxRatePercent]
   );
 
+  function getInitials(fullName: string) {
+  return fullName
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("")
+    .slice(0, 4);
+}
+
+function getYearTwoDigits(dateValue: string) {
+  if (!dateValue) return "00";
+  return dateValue.slice(2, 4);
+}
+
+function generateQuoteFolio() {
+  const employee = employees.find((item) => item.id === quoteForm.employeeId);
+
+  const initials = employee ? getInitials(employee.fullName) : "XXXX";
+  const yearTwoDigits = getYearTwoDigits(quoteForm.date);
+  const consecutive = String(quotes.length + 1).padStart(3, "0");
+
+  return `P${consecutive}${initials}${yearTwoDigits}`;
+}
+  
   function resetQuoteForm() {
     setQuoteForm({
       ...blankQuoteForm,
