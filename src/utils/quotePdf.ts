@@ -8,6 +8,7 @@ type ExportQuotePdfParams = {
   contact?: Contact;
   employee?: Employee;
   products: Product[];
+  logoSrc?: string;
 };
 
 function formatCurrency(value: number, currency: "MXN" | "USD") {
@@ -32,13 +33,27 @@ export function exportQuoteToPdf({
   contact,
   employee,
   products,
+  logoSrc,
 }: ExportQuotePdfParams) {
   const doc = new jsPDF("p", "mm", "letter");
   const pageWidth = doc.internal.pageSize.getWidth();
 
   let y = 16;
 
-  // Encabezado principal
+if (logoSrc) {
+  try {
+    doc.addImage(logoSrc, "PNG", 14, 10, 42, 28);
+  } catch {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.text("PUNTO CERO", 14, y);
+    y += 8;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.text("SOLUCIONES", 14, y);
+  }
+} else {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(22);
   doc.text("PUNTO CERO", 14, y);
@@ -47,7 +62,9 @@ export function exportQuoteToPdf({
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
   doc.text("SOLUCIONES", 14, y);
-  y += 8;
+}
+
+y = 40;
 
   // Caja de datos del cliente / folio / fecha a la derecha
   const rightX = 120;
