@@ -113,3 +113,43 @@ export type ContactFormState = {
   phone: string;
   notes: string;
 };
+
+export type QuoteItem = {
+  id: string;
+  productId: string;
+  quantity: number;
+  unitPrice: number;
+  lineSubtotal: number;
+};
+
+export type Quote = {
+  id: string;
+  folio: string;
+  date: string;
+  clientId: string;
+  contactId: string;
+  employeeId: string;
+  projectName: string;
+  currency: CurrencyCode;
+  exchangeRate: number;
+  notes: string;
+  taxRatePercent: number;
+  items: QuoteItem[];
+  subtotal: number;
+  tax: number;
+  total: number;
+};
+
+export type QuoteFormState = {
+  id: string;
+  folio: string;
+  date: string;
+  clientId: string;
+  contactId: string;
+  employeeId: string;
+  projectName: string;
+  currency: CurrencyCode;
+  exchangeRateInput: string;
+  notes: string;
+  taxRatePercentInput: string;
+};
