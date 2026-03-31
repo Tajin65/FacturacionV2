@@ -13,7 +13,7 @@ import {
   calculateQuoteTax,
 } from "../utils/calculations";
 import { exportQuoteToPdf } from "../utils/quotePdf";
-import logoPuntoCero from "../logo-punto-cero.png";
+
 
 import type {
   Client,
@@ -374,7 +374,6 @@ function exportPdf(quote: Quote) {
     contact,
     employee,
     products,
-    logoSrc: logoPuntoCero,
   });
 }
 
