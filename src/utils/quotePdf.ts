@@ -30,8 +30,7 @@ export function exportQuoteToPdf({
   doc.text(`Fecha: ${quote.date}`, 120, y);
   y += 6;
 
-  doc.text(`Estatus: ${quote.status}`, 14, y);
-  doc.text(`Moneda: ${quote.currency}`, 120, y);
+  doc.text(`Moneda: ${quote.currency}`, 14, y);
   y += 10;
 
   doc.setFontSize(12);
@@ -77,15 +76,23 @@ export function exportQuoteToPdf({
     const partNumber = item.isFreeItem ? "-" : product?.partNumber || "-";
     const unitDiscount = item.perUnitDiscount || 0;
 
-    return [
-      partNumber,
-      concept,
-      String(item.quantity),
-      quote.currency,
-      item.unitPrice.toFixed(2),
-      unitDiscount.toFixed(2),
-      item.lineSubtotal.toFixed(2),
-    ];
+    const numberFormatter = new Intl.NumberFormat(
+  quote.currency === "USD" ? "en-US" : "es-MX",
+  {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }
+);
+
+return [
+  partNumber,
+  concept,
+  String(item.quantity),
+  quote.currency,
+  numberFormatter.format(item.unitPrice),
+  numberFormatter.format(unitDiscount),
+  numberFormatter.format(item.lineSubtotal),
+];
   });
 
   autoTable(doc, {
@@ -100,12 +107,22 @@ export function exportQuoteToPdf({
   let totalsY = finalY + 10;
 
   doc.setFontSize(10);
-  doc.text(`Subtotal partidas: ${quote.subtotal.toFixed(2)} ${quote.currency}`, 140, totalsY);
-  totalsY += 6;
-  doc.text(`IVA: ${quote.tax.toFixed(2)} ${quote.currency}`, 140, totalsY);
-  totalsY += 6;
-  doc.text(`Total: ${quote.total.toFixed(2)} ${quote.currency}`, 140, totalsY);
-  totalsY += 10;
+
+  const currencyFormatter = new Intl.NumberFormat(
+  quote.currency === "USD" ? "en-US" : "es-MX",
+  {
+    style: "currency",
+    currency: quote.currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }
+);
+
+doc.text(`Subtotal: ${currencyFormatter.format(quote.subtotal)}`, 140, totalsY);
+totalsY += 6;
+doc.text(`IVA: ${currencyFormatter.format(quote.tax)}`, 140, totalsY);
+totalsY += 6;
+doc.text(`Total: ${currencyFormatter.format(quote.total)}`, 140, totalsY);
 
   if (quote.notes) {
     doc.setFontSize(12);
