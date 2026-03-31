@@ -13,6 +13,8 @@ import {
   calculateQuoteTax,
 } from "../utils/calculations";
 import { exportQuoteToPdf } from "../utils/quotePdf";
+import logoPuntoCero from "../logo-punto-cero.png";
+
 import type {
   Client,
   Contact,
@@ -361,19 +363,20 @@ export default function QuotesModule() {
     }
   }
 
-  function exportPdf(quote: Quote) {
-    const client = clients.find((c) => c.id === quote.clientId);
-    const contact = contacts.find((c) => c.id === quote.contactId);
-    const employee = employees.find((e) => e.id === quote.employeeId);
+function exportPdf(quote: Quote) {
+  const client = clients.find((c) => c.id === quote.clientId);
+  const contact = contacts.find((c) => c.id === quote.contactId);
+  const employee = employees.find((e) => e.id === quote.employeeId);
 
-    exportQuoteToPdf({
-      quote,
-      client,
-      contact,
-      employee,
-      products,
-    });
-  }
+  exportQuoteToPdf({
+    quote,
+    client,
+    contact,
+    employee,
+    products,
+    logoSrc: logoPuntoCero,
+  });
+}
 
   return (
     <div className="content-stack">
