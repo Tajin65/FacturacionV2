@@ -9,10 +9,10 @@ import {
 } from "../data/storageKeys";
 import { money } from "../utils/format";
 import {
-  calculateQuoteLineSubtotal,
   calculateQuoteSubtotal,
   calculateQuoteTax,
 } from "../utils/calculations";
+import { exportQuoteToPdf } from "../utils/quotePdf";
 import type {
   Client,
   Contact,
@@ -54,11 +54,13 @@ export default function QuotesModule() {
 
   const [selectedProductId, setSelectedProductId] = useState("");
   const [selectedQuantity, setSelectedQuantity] = useState("1");
+  const [selectedPerUnitDiscount, setSelectedPerUnitDiscount] = useState("0");
 
   const [freeItemName, setFreeItemName] = useState("");
   const [freeItemDescription, setFreeItemDescription] = useState("");
   const [freeItemQuantity, setFreeItemQuantity] = useState("1");
   const [freeItemUnitPrice, setFreeItemUnitPrice] = useState("");
+  const [freeItemPerUnitDiscount, setFreeItemPerUnitDiscount] = useState("0");
 
   useEffect(() => {
     try {
@@ -156,6 +158,11 @@ export default function QuotesModule() {
     return `P${consecutive}${initials}${yearTwoDigits}`;
   }
 
+  function calculateLineSubtotal(quantity: number, unitPrice: number, perUnitDiscount: number) {
+    const netUnitPrice = Math.max(0, unitPrice - perUnitDiscount);
+    return quantity * netUnitPrice;
+  }
+
   function resetQuoteForm() {
     setQuoteForm({
       ...blankQuoteForm,
@@ -164,10 +171,12 @@ export default function QuotesModule() {
     setQuoteItems([]);
     setSelectedProductId("");
     setSelectedQuantity("1");
+    setSelectedPerUnitDiscount("0");
     setFreeItemName("");
     setFreeItemDescription("");
     setFreeItemQuantity("1");
     setFreeItemUnitPrice("");
+    setFreeItemPerUnitDiscount("0");
     setEditingQuoteId("");
   }
 
@@ -186,13 +195,15 @@ export default function QuotesModule() {
     }
 
     const quantity = Number(selectedQuantity || 0);
+    const unitPrice = selectedProduct.salePrice;
+    const perUnitDiscount = Number(selectedPerUnitDiscount || 0);
+
     if (quantity <= 0) {
       alert("La cantidad debe ser mayor a 0.");
       return;
     }
 
-    const unitPrice = selectedProduct.salePrice;
-    const lineSubtotal = calculateQuoteLineSubtotal(quantity, unitPrice);
+    const lineSubtotal = calculateLineSubtotal(quantity, unitPrice, perUnitDiscount);
 
     const newItem: QuoteItem = {
       id: crypto.randomUUID(),
@@ -201,11 +212,13 @@ export default function QuotesModule() {
       unitPrice,
       lineSubtotal,
       itemType: "producto",
+      perUnitDiscount,
     };
 
     setQuoteItems((prev) => [...prev, newItem]);
     setSelectedProductId("");
     setSelectedQuantity("1");
+    setSelectedPerUnitDiscount("0");
   }
 
   function addFreeItem() {
@@ -216,13 +229,14 @@ export default function QuotesModule() {
 
     const quantity = Number(freeItemQuantity || 0);
     const unitPrice = Number(freeItemUnitPrice || 0);
+    const perUnitDiscount = Number(freeItemPerUnitDiscount || 0);
 
     if (quantity <= 0) {
       alert("La cantidad del producto libre debe ser mayor a 0.");
       return;
     }
 
-    const lineSubtotal = calculateQuoteLineSubtotal(quantity, unitPrice);
+    const lineSubtotal = calculateLineSubtotal(quantity, unitPrice, perUnitDiscount);
 
     const newItem: QuoteItem = {
       id: crypto.randomUUID(),
@@ -234,6 +248,7 @@ export default function QuotesModule() {
       freeItemName: freeItemName.trim(),
       freeItemDescription: freeItemDescription.trim(),
       itemType: "libre",
+      perUnitDiscount,
     };
 
     setQuoteItems((prev) => [...prev, newItem]);
@@ -242,6 +257,7 @@ export default function QuotesModule() {
     setFreeItemDescription("");
     setFreeItemQuantity("1");
     setFreeItemUnitPrice("");
+    setFreeItemPerUnitDiscount("0");
   }
 
   function removeQuoteItem(itemId: string) {
@@ -343,6 +359,20 @@ export default function QuotesModule() {
       default:
         return status;
     }
+  }
+
+  function exportPdf(quote: Quote) {
+    const client = clients.find((c) => c.id === quote.clientId);
+    const contact = contacts.find((c) => c.id === quote.contactId);
+    const employee = employees.find((e) => e.id === quote.employeeId);
+
+    exportQuoteToPdf({
+      quote,
+      client,
+      contact,
+      employee,
+      products,
+    });
   }
 
   return (
@@ -489,7 +519,7 @@ export default function QuotesModule() {
           </div>
 
           <div className="field">
-            <label>Descuento</label>
+            <label>Descuento global</label>
             <input
               type="number"
               value={quoteForm.discountAmountInput}
@@ -557,25 +587,19 @@ export default function QuotesModule() {
             />
           </div>
 
+          <div className="field">
+            <label>Descuento por pieza</label>
+            <input
+              type="number"
+              value={selectedPerUnitDiscount}
+              onChange={(e) => setSelectedPerUnitDiscount(e.target.value)}
+            />
+          </div>
+
           <div className="info-box">
             <div className="info-box-label">Precio unitario</div>
             <div className="info-box-value">
               {selectedProduct ? money(selectedProduct.salePrice, selectedProduct.currency) : "$0.00"}
-            </div>
-          </div>
-
-          <div className="info-box">
-            <div className="info-box-label">Subtotal línea</div>
-            <div className="info-box-value">
-              {selectedProduct
-                ? money(
-                    calculateQuoteLineSubtotal(
-                      Number(selectedQuantity || 0),
-                      selectedProduct.salePrice
-                    ),
-                    selectedProduct.currency
-                  )
-                : "$0.00"}
             </div>
           </div>
         </div>
@@ -594,7 +618,6 @@ export default function QuotesModule() {
             <input
               value={freeItemName}
               onChange={(e) => setFreeItemName(e.target.value)}
-              placeholder="Nombre del producto o servicio"
             />
           </div>
 
@@ -613,6 +636,15 @@ export default function QuotesModule() {
               type="number"
               value={freeItemUnitPrice}
               onChange={(e) => setFreeItemUnitPrice(e.target.value)}
+            />
+          </div>
+
+          <div className="field">
+            <label>Descuento por pieza</label>
+            <input
+              type="number"
+              value={freeItemPerUnitDiscount}
+              onChange={(e) => setFreeItemPerUnitDiscount(e.target.value)}
             />
           </div>
 
@@ -641,7 +673,8 @@ export default function QuotesModule() {
                 <th>No. parte</th>
                 <th>Concepto</th>
                 <th>Cantidad</th>
-                <th>Precio unitario</th>
+                <th>P. unitario</th>
+                <th>Desc. pza</th>
                 <th>Subtotal</th>
                 <th>Acciones</th>
               </tr>
@@ -649,7 +682,7 @@ export default function QuotesModule() {
             <tbody>
               {quoteItems.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="empty-state">
+                  <td colSpan={8} className="empty-state">
                     Todavía no hay partidas agregadas.
                   </td>
                 </tr>
@@ -667,6 +700,7 @@ export default function QuotesModule() {
                       <td>{conceptName}</td>
                       <td>{item.quantity}</td>
                       <td>{money(item.unitPrice, quoteForm.currency)}</td>
+                      <td>{money(item.perUnitDiscount || 0, quoteForm.currency)}</td>
                       <td>{money(item.lineSubtotal, quoteForm.currency)}</td>
                       <td>
                         <div className="table-actions">
@@ -700,7 +734,7 @@ export default function QuotesModule() {
           </div>
 
           <div className="info-box">
-            <div className="info-box-label">Descuento</div>
+            <div className="info-box-label">Descuento global</div>
             <div className="info-box-value">{money(discountAmount, quoteForm.currency)}</div>
           </div>
 
@@ -771,11 +805,11 @@ export default function QuotesModule() {
                       </td>
                       <td>
                         <div className="table-actions">
-                          <button
-                            className="btn btn-secondary"
-                            onClick={() => editQuote(quote)}
-                          >
+                          <button className="btn btn-secondary" onClick={() => editQuote(quote)}>
                             Editar
+                          </button>
+                          <button className="btn btn-secondary" onClick={() => exportPdf(quote)}>
+                            PDF
                           </button>
                           <button
                             className="btn btn-secondary btn-danger"
