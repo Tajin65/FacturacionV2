@@ -71,6 +71,13 @@ export default function QuotesModule() {
     localStorage.setItem(QUOTES_STORAGE_KEY, JSON.stringify(quotes));
   }, [quotes]);
 
+  useEffect(() => {
+    setQuoteForm((prev) => ({
+      ...prev,
+      exchangeRateInput: prev.currency === "USD" ? "18.12" : "1",
+    }));
+  }, [quoteForm.currency]);
+
   const filteredContacts = useMemo(() => {
     if (!quoteForm.clientId) return [];
     return contacts.filter((contact) => contact.clientId === quoteForm.clientId);
@@ -81,10 +88,7 @@ export default function QuotesModule() {
     [products, selectedProductId]
   );
 
-  const quoteSubtotal = useMemo(
-    () => calculateQuoteSubtotal(quoteItems),
-    [quoteItems]
-  );
+  const quoteSubtotal = useMemo(() => calculateQuoteSubtotal(quoteItems), [quoteItems]);
 
   const taxRatePercent = useMemo(
     () => Number(quoteForm.taxRatePercentInput || 0),
@@ -102,30 +106,37 @@ export default function QuotesModule() {
   );
 
   function getInitials(fullName: string) {
-  return fullName
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join("")
-    .slice(0, 4);
-}
+    return fullName
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join("")
+      .slice(0, 4);
+  }
 
-function getYearTwoDigits(dateValue: string) {
-  if (!dateValue) return "00";
-  return dateValue.slice(2, 4);
-}
+  function getYearTwoDigits(dateValue: string) {
+    if (!dateValue) return "00";
+    return dateValue.slice(2, 4);
+  }
 
-function generateQuoteFolio() {
-  const employee = employees.find((item) => item.id === quoteForm.employeeId);
+  function generateQuoteFolio() {
+    const employee = employees.find((item) => item.id === quoteForm.employeeId);
 
-  const initials = employee ? getInitials(employee.fullName) : "XXXX";
-  const yearTwoDigits = getYearTwoDigits(quoteForm.date);
-  const consecutive = String(quotes.length + 1).padStart(3, "0");
+    const initials = employee ? getInitials(employee.fullName) : "XXXX";
+    const yearTwoDigits = getYearTwoDigits(quoteForm.date);
 
-  return `P${consecutive}${initials}${yearTwoDigits}`;
-}
-  
+    const maxConsecutive = quotes.reduce((max, quote) => {
+      const match = quote.folio.match(/^P(\d{3})/);
+      const current = match ? Number(match[1]) : 0;
+      return current > max ? current : max;
+    }, 0);
+
+    const consecutive = String(maxConsecutive + 1).padStart(3, "0");
+
+    return `P${consecutive}${initials}${yearTwoDigits}`;
+  }
+
   function resetQuoteForm() {
     setQuoteForm({
       ...blankQuoteForm,
@@ -177,11 +188,6 @@ function generateQuoteFolio() {
   }
 
   function saveQuote() {
-    if (!quoteForm.folio.trim()) {
-      alert("Captura el folio de la cotización.");
-      return;
-    }
-
     if (!quoteForm.clientId) {
       alert("Selecciona un cliente.");
       return;
@@ -199,7 +205,7 @@ function generateQuoteFolio() {
 
     const payload: Quote = {
       id: crypto.randomUUID(),
-      folio: quoteForm.folio.trim(),
+      folio: generateQuoteFolio(),
       date: quoteForm.date,
       clientId: quoteForm.clientId,
       contactId: quoteForm.contactId,
@@ -231,13 +237,7 @@ function generateQuoteFolio() {
         <div className="form-grid">
           <div className="field">
             <label>Folio</label>
-            <input
-              value={quoteForm.folio}
-              onChange={(e) =>
-                setQuoteForm((prev) => ({ ...prev, folio: e.target.value }))
-              }
-              placeholder="Ej. COT-0001"
-            />
+            <input value="Se generará automáticamente al guardar" disabled />
           </div>
 
           <div className="field">
@@ -336,6 +336,9 @@ function generateQuoteFolio() {
                 setQuoteForm((prev) => ({ ...prev, exchangeRateInput: e.target.value }))
               }
             />
+            <small style={{ color: "#5b6b84" }}>
+              Automático: MXN = 1, USD = 18.12
+            </small>
           </div>
 
           <div className="field">
