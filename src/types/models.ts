@@ -126,6 +126,7 @@ export type QuoteItem = {
   freeItemName?: string;
   freeItemDescription?: string;
   itemType?: "producto" | "libre" | "mano_obra";
+  perUnitDiscount?: number;
 };
 
 export type Quote = {
