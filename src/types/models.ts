@@ -114,12 +114,18 @@ export type ContactFormState = {
   notes: string;
 };
 
+export type QuoteStatus = "abierta" | "en_proceso" | "cerrada" | "cancelada";
+
 export type QuoteItem = {
   id: string;
   productId: string;
   quantity: number;
   unitPrice: number;
   lineSubtotal: number;
+  isFreeItem?: boolean;
+  freeItemName?: string;
+  freeItemDescription?: string;
+  itemType?: "producto" | "libre" | "mano_obra";
 };
 
 export type Quote = {
@@ -134,6 +140,9 @@ export type Quote = {
   exchangeRate: number;
   notes: string;
   taxRatePercent: number;
+  status: QuoteStatus;
+  discountAmount: number;
+  laborAmount: number;
   items: QuoteItem[];
   subtotal: number;
   tax: number;
@@ -152,4 +161,7 @@ export type QuoteFormState = {
   exchangeRateInput: string;
   notes: string;
   taxRatePercentInput: string;
+  status: QuoteStatus;
+  discountAmountInput: string;
+  laborAmountInput: string;
 };
