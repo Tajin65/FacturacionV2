@@ -100,7 +100,7 @@ export function exportQuoteToPdf({
   let totalsY = finalY + 10;
 
   doc.setFontSize(10);
-  doc.text(`Subtotal: ${quote.subtotal.toFixed(2)} ${quote.currency}`, 140, totalsY);
+  doc.text(`Subtotal partidas: ${quote.subtotal.toFixed(2)} ${quote.currency}`, 140, totalsY);
   totalsY += 6;
   doc.text(`IVA: ${quote.tax.toFixed(2)} ${quote.currency}`, 140, totalsY);
   totalsY += 6;
