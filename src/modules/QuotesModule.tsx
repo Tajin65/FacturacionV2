@@ -12,7 +12,6 @@ import {
   calculateQuoteLineSubtotal,
   calculateQuoteSubtotal,
   calculateQuoteTax,
-  calculateQuoteTotal,
 } from "../utils/calculations";
 import type {
   Client,
@@ -22,6 +21,7 @@ import type {
   Quote,
   QuoteFormState,
   QuoteItem,
+  QuoteStatus,
 } from "../types/models";
 
 const blankQuoteForm: QuoteFormState = {
@@ -36,6 +36,9 @@ const blankQuoteForm: QuoteFormState = {
   exchangeRateInput: "1",
   notes: "",
   taxRatePercentInput: "16",
+  status: "abierta",
+  discountAmountInput: "0",
+  laborAmountInput: "0",
 };
 
 export default function QuotesModule() {
@@ -47,9 +50,15 @@ export default function QuotesModule() {
 
   const [quoteForm, setQuoteForm] = useState<QuoteFormState>(blankQuoteForm);
   const [quoteItems, setQuoteItems] = useState<QuoteItem[]>([]);
+  const [editingQuoteId, setEditingQuoteId] = useState("");
 
   const [selectedProductId, setSelectedProductId] = useState("");
   const [selectedQuantity, setSelectedQuantity] = useState("1");
+
+  const [freeItemName, setFreeItemName] = useState("");
+  const [freeItemDescription, setFreeItemDescription] = useState("");
+  const [freeItemQuantity, setFreeItemQuantity] = useState("1");
+  const [freeItemUnitPrice, setFreeItemUnitPrice] = useState("");
 
   useEffect(() => {
     try {
@@ -88,7 +97,22 @@ export default function QuotesModule() {
     [products, selectedProductId]
   );
 
-  const quoteSubtotal = useMemo(() => calculateQuoteSubtotal(quoteItems), [quoteItems]);
+  const itemsSubtotal = useMemo(() => calculateQuoteSubtotal(quoteItems), [quoteItems]);
+
+  const laborAmount = useMemo(
+    () => Number(quoteForm.laborAmountInput || 0),
+    [quoteForm.laborAmountInput]
+  );
+
+  const discountAmount = useMemo(
+    () => Number(quoteForm.discountAmountInput || 0),
+    [quoteForm.discountAmountInput]
+  );
+
+  const preTaxSubtotal = useMemo(() => {
+    const value = itemsSubtotal + laborAmount - discountAmount;
+    return value < 0 ? 0 : value;
+  }, [itemsSubtotal, laborAmount, discountAmount]);
 
   const taxRatePercent = useMemo(
     () => Number(quoteForm.taxRatePercentInput || 0),
@@ -96,14 +120,11 @@ export default function QuotesModule() {
   );
 
   const quoteTax = useMemo(
-    () => calculateQuoteTax(quoteSubtotal, taxRatePercent),
-    [quoteSubtotal, taxRatePercent]
+    () => calculateQuoteTax(preTaxSubtotal, taxRatePercent),
+    [preTaxSubtotal, taxRatePercent]
   );
 
-  const quoteTotal = useMemo(
-    () => calculateQuoteTotal(quoteSubtotal, taxRatePercent),
-    [quoteSubtotal, taxRatePercent]
-  );
+  const quoteTotal = useMemo(() => preTaxSubtotal + quoteTax, [preTaxSubtotal, quoteTax]);
 
   function getInitials(fullName: string) {
     return fullName
@@ -122,7 +143,6 @@ export default function QuotesModule() {
 
   function generateQuoteFolio() {
     const employee = employees.find((item) => item.id === quoteForm.employeeId);
-
     const initials = employee ? getInitials(employee.fullName) : "XXXX";
     const yearTwoDigits = getYearTwoDigits(quoteForm.date);
 
@@ -133,7 +153,6 @@ export default function QuotesModule() {
     }, 0);
 
     const consecutive = String(maxConsecutive + 1).padStart(3, "0");
-
     return `P${consecutive}${initials}${yearTwoDigits}`;
   }
 
@@ -145,6 +164,11 @@ export default function QuotesModule() {
     setQuoteItems([]);
     setSelectedProductId("");
     setSelectedQuantity("1");
+    setFreeItemName("");
+    setFreeItemDescription("");
+    setFreeItemQuantity("1");
+    setFreeItemUnitPrice("");
+    setEditingQuoteId("");
   }
 
   function handleClientChange(clientId: string) {
@@ -176,11 +200,48 @@ export default function QuotesModule() {
       quantity,
       unitPrice,
       lineSubtotal,
+      itemType: "producto",
     };
 
     setQuoteItems((prev) => [...prev, newItem]);
     setSelectedProductId("");
     setSelectedQuantity("1");
+  }
+
+  function addFreeItem() {
+    if (!freeItemName.trim()) {
+      alert("Captura el nombre del producto libre.");
+      return;
+    }
+
+    const quantity = Number(freeItemQuantity || 0);
+    const unitPrice = Number(freeItemUnitPrice || 0);
+
+    if (quantity <= 0) {
+      alert("La cantidad del producto libre debe ser mayor a 0.");
+      return;
+    }
+
+    const lineSubtotal = calculateQuoteLineSubtotal(quantity, unitPrice);
+
+    const newItem: QuoteItem = {
+      id: crypto.randomUUID(),
+      productId: "",
+      quantity,
+      unitPrice,
+      lineSubtotal,
+      isFreeItem: true,
+      freeItemName: freeItemName.trim(),
+      freeItemDescription: freeItemDescription.trim(),
+      itemType: "libre",
+    };
+
+    setQuoteItems((prev) => [...prev, newItem]);
+
+    setFreeItemName("");
+    setFreeItemDescription("");
+    setFreeItemQuantity("1");
+    setFreeItemUnitPrice("");
   }
 
   function removeQuoteItem(itemId: string) {
@@ -204,8 +265,10 @@ export default function QuotesModule() {
     }
 
     const payload: Quote = {
-      id: crypto.randomUUID(),
-      folio: generateQuoteFolio(),
+      id: editingQuoteId || crypto.randomUUID(),
+      folio: editingQuoteId
+        ? quotes.find((q) => q.id === editingQuoteId)?.folio || generateQuoteFolio()
+        : generateQuoteFolio(),
       date: quoteForm.date,
       clientId: quoteForm.clientId,
       contactId: quoteForm.contactId,
@@ -215,29 +278,87 @@ export default function QuotesModule() {
       exchangeRate: Number(quoteForm.exchangeRateInput || 1),
       notes: quoteForm.notes.trim(),
       taxRatePercent: Number(quoteForm.taxRatePercentInput || 0),
+      status: quoteForm.status,
+      discountAmount: discountAmount,
+      laborAmount: laborAmount,
       items: quoteItems,
-      subtotal: quoteSubtotal,
+      subtotal: preTaxSubtotal,
       tax: quoteTax,
       total: quoteTotal,
     };
 
-    setQuotes((prev) => [payload, ...prev]);
+    if (editingQuoteId) {
+      setQuotes((prev) => prev.map((q) => (q.id === editingQuoteId ? payload : q)));
+    } else {
+      setQuotes((prev) => [payload, ...prev]);
+    }
+
     resetQuoteForm();
+  }
+
+  function editQuote(quote: Quote) {
+    setQuoteForm({
+      id: quote.id,
+      folio: quote.folio,
+      date: quote.date,
+      clientId: quote.clientId,
+      contactId: quote.contactId,
+      employeeId: quote.employeeId,
+      projectName: quote.projectName,
+      currency: quote.currency,
+      exchangeRateInput: String(quote.exchangeRate),
+      notes: quote.notes,
+      taxRatePercentInput: String(quote.taxRatePercent),
+      status: quote.status,
+      discountAmountInput: String(quote.discountAmount || 0),
+      laborAmountInput: String(quote.laborAmount || 0),
+    });
+    setQuoteItems(quote.items || []);
+    setEditingQuoteId(quote.id);
   }
 
   function deleteQuote(id: string) {
     const confirmed = window.confirm("¿Deseas eliminar esta cotización?");
     if (!confirmed) return;
     setQuotes((prev) => prev.filter((item) => item.id !== id));
+    if (editingQuoteId === id) resetQuoteForm();
+  }
+
+  function updateQuoteStatus(id: string, status: QuoteStatus) {
+    setQuotes((prev) =>
+      prev.map((quote) => (quote.id === id ? { ...quote, status } : quote))
+    );
+  }
+
+  function getStatusLabel(status: QuoteStatus) {
+    switch (status) {
+      case "abierta":
+        return "Abierta";
+      case "en_proceso":
+        return "En proceso";
+      case "cerrada":
+        return "Cerrada";
+      case "cancelada":
+        return "Cancelada";
+      default:
+        return status;
+    }
   }
 
   return (
     <div className="content-stack">
-      <SectionCard title="Alta de cotización">
+      <SectionCard title={editingQuoteId ? "Editar cotización" : "Alta de cotización"}>
         <div className="form-grid">
           <div className="field">
             <label>Folio</label>
-            <input value="Se generará automáticamente al guardar" disabled />
+            <input
+              value={
+                editingQuoteId
+                  ? quoteForm.folio || "Se conservará el folio actual"
+                  : "Se generará automáticamente al guardar"
+              }
+              disabled
+            />
           </div>
 
           <div className="field">
@@ -336,9 +457,6 @@ export default function QuotesModule() {
                 setQuoteForm((prev) => ({ ...prev, exchangeRateInput: e.target.value }))
               }
             />
-            <small style={{ color: "#5b6b84" }}>
-              Automático: MXN = 1, USD = 18.12
-            </small>
           </div>
 
           <div className="field">
@@ -348,6 +466,46 @@ export default function QuotesModule() {
               value={quoteForm.taxRatePercentInput}
               onChange={(e) =>
                 setQuoteForm((prev) => ({ ...prev, taxRatePercentInput: e.target.value }))
+              }
+            />
+          </div>
+
+          <div className="field">
+            <label>Estatus</label>
+            <select
+              value={quoteForm.status}
+              onChange={(e) =>
+                setQuoteForm((prev) => ({
+                  ...prev,
+                  status: e.target.value as QuoteStatus,
+                }))
+              }
+            >
+              <option value="abierta">Abierta</option>
+              <option value="en_proceso">En proceso</option>
+              <option value="cerrada">Cerrada</option>
+              <option value="cancelada">Cancelada</option>
+            </select>
+          </div>
+
+          <div className="field">
+            <label>Descuento</label>
+            <input
+              type="number"
+              value={quoteForm.discountAmountInput}
+              onChange={(e) =>
+                setQuoteForm((prev) => ({ ...prev, discountAmountInput: e.target.value }))
+              }
+            />
+          </div>
+
+          <div className="field">
+            <label>Mano de obra</label>
+            <input
+              type="number"
+              value={quoteForm.laborAmountInput}
+              onChange={(e) =>
+                setQuoteForm((prev) => ({ ...prev, laborAmountInput: e.target.value }))
               }
             />
           </div>
@@ -362,9 +520,18 @@ export default function QuotesModule() {
             />
           </div>
         </div>
+
+        <div className="button-row">
+          <button className="btn btn-primary" onClick={saveQuote}>
+            {editingQuoteId ? "Guardar cambios" : "Guardar cotización"}
+          </button>
+          <button className="btn btn-secondary" onClick={resetQuoteForm}>
+            Limpiar
+          </button>
+        </div>
       </SectionCard>
 
-      <SectionCard title="Agregar partida">
+      <SectionCard title="Agregar producto del catálogo">
         <div className="form-grid">
           <div className="field">
             <label>Producto</label>
@@ -420,13 +587,59 @@ export default function QuotesModule() {
         </div>
       </SectionCard>
 
+      <SectionCard title="Agregar producto libre">
+        <div className="form-grid">
+          <div className="field">
+            <label>Nombre</label>
+            <input
+              value={freeItemName}
+              onChange={(e) => setFreeItemName(e.target.value)}
+              placeholder="Nombre del producto o servicio"
+            />
+          </div>
+
+          <div className="field">
+            <label>Cantidad</label>
+            <input
+              type="number"
+              value={freeItemQuantity}
+              onChange={(e) => setFreeItemQuantity(e.target.value)}
+            />
+          </div>
+
+          <div className="field">
+            <label>Precio unitario</label>
+            <input
+              type="number"
+              value={freeItemUnitPrice}
+              onChange={(e) => setFreeItemUnitPrice(e.target.value)}
+            />
+          </div>
+
+          <div className="field" style={{ gridColumn: "1 / -1" }}>
+            <label>Descripción</label>
+            <textarea
+              value={freeItemDescription}
+              onChange={(e) => setFreeItemDescription(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="button-row">
+          <button className="btn btn-primary" onClick={addFreeItem}>
+            Agregar producto libre
+          </button>
+        </div>
+      </SectionCard>
+
       <SectionCard title="Partidas de la cotización">
         <div className="table-wrap">
           <table className="app-table">
             <thead>
               <tr>
+                <th>Tipo</th>
                 <th>No. parte</th>
-                <th>Producto</th>
+                <th>Concepto</th>
                 <th>Cantidad</th>
                 <th>Precio unitario</th>
                 <th>Subtotal</th>
@@ -436,17 +649,22 @@ export default function QuotesModule() {
             <tbody>
               {quoteItems.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="empty-state">
+                  <td colSpan={7} className="empty-state">
                     Todavía no hay partidas agregadas.
                   </td>
                 </tr>
               ) : (
                 quoteItems.map((item) => {
                   const product = products.find((p) => p.id === item.productId);
+                  const conceptName = item.isFreeItem
+                    ? item.freeItemName || "Producto libre"
+                    : product?.shortName || "Producto no encontrado";
+
                   return (
                     <tr key={item.id}>
-                      <td>{product?.partNumber || "-"}</td>
-                      <td>{product?.shortName || "Producto no encontrado"}</td>
+                      <td>{item.itemType === "libre" ? "Libre" : "Catálogo"}</td>
+                      <td>{item.isFreeItem ? "-" : product?.partNumber || "-"}</td>
+                      <td>{conceptName}</td>
                       <td>{item.quantity}</td>
                       <td>{money(item.unitPrice, quoteForm.currency)}</td>
                       <td>{money(item.lineSubtotal, quoteForm.currency)}</td>
@@ -472,8 +690,23 @@ export default function QuotesModule() {
       <SectionCard title="Totales">
         <div className="stats-grid">
           <div className="info-box">
-            <div className="info-box-label">Subtotal</div>
-            <div className="info-box-value">{money(quoteSubtotal, quoteForm.currency)}</div>
+            <div className="info-box-label">Subtotal partidas</div>
+            <div className="info-box-value">{money(itemsSubtotal, quoteForm.currency)}</div>
+          </div>
+
+          <div className="info-box">
+            <div className="info-box-label">Mano de obra</div>
+            <div className="info-box-value">{money(laborAmount, quoteForm.currency)}</div>
+          </div>
+
+          <div className="info-box">
+            <div className="info-box-label">Descuento</div>
+            <div className="info-box-value">{money(discountAmount, quoteForm.currency)}</div>
+          </div>
+
+          <div className="info-box">
+            <div className="info-box-label">Subtotal neto</div>
+            <div className="info-box-value">{money(preTaxSubtotal, quoteForm.currency)}</div>
           </div>
 
           <div className="info-box">
@@ -486,15 +719,6 @@ export default function QuotesModule() {
             <div className="info-box-value">{money(quoteTotal, quoteForm.currency)}</div>
           </div>
         </div>
-
-        <div className="button-row">
-          <button className="btn btn-primary" onClick={saveQuote}>
-            Guardar cotización
-          </button>
-          <button className="btn btn-secondary" onClick={resetQuoteForm}>
-            Limpiar
-          </button>
-        </div>
       </SectionCard>
 
       <SectionCard title="Cotizaciones guardadas">
@@ -506,15 +730,17 @@ export default function QuotesModule() {
                 <th>Fecha</th>
                 <th>Cliente</th>
                 <th>Proyecto</th>
+                <th>Estatus</th>
                 <th>Moneda</th>
                 <th>Total</th>
+                <th>Cambiar estatus</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {quotes.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="empty-state">
+                  <td colSpan={9} className="empty-state">
                     Todavía no hay cotizaciones registradas.
                   </td>
                 </tr>
@@ -527,10 +753,30 @@ export default function QuotesModule() {
                       <td>{quote.date}</td>
                       <td>{client?.businessName || "Cliente no encontrado"}</td>
                       <td>{quote.projectName}</td>
+                      <td>{getStatusLabel(quote.status)}</td>
                       <td>{quote.currency}</td>
                       <td>{money(quote.total, quote.currency)}</td>
                       <td>
+                        <select
+                          value={quote.status}
+                          onChange={(e) =>
+                            updateQuoteStatus(quote.id, e.target.value as QuoteStatus)
+                          }
+                        >
+                          <option value="abierta">Abierta</option>
+                          <option value="en_proceso">En proceso</option>
+                          <option value="cerrada">Cerrada</option>
+                          <option value="cancelada">Cancelada</option>
+                        </select>
+                      </td>
+                      <td>
                         <div className="table-actions">
+                          <button
+                            className="btn btn-secondary"
+                            onClick={() => editQuote(quote)}
+                          >
+                            Editar
+                          </button>
                           <button
                             className="btn btn-secondary btn-danger"
                             onClick={() => deleteQuote(quote.id)}
