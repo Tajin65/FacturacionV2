@@ -42,7 +42,7 @@ export function exportQuoteToPdf({
 
   if (logoSrc) {
     try {
-      doc.addImage(logoSrc, "PNG", 14, 10, 49.5, 30.6);
+      doc.addImage(logoSrc, "PNG", 14, 10, 42, 26);
     } catch {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(20);
