@@ -42,7 +42,7 @@ export function exportQuoteToPdf({
 
   if (logoSrc) {
     try {
-      doc.addImage(logoSrc, "PNG", 14, 10, 42, 26);
+      doc.addImage(logoSrc, "PNG", 14, 10, 38, 24);
     } catch {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(20);
@@ -77,41 +77,49 @@ export function exportQuoteToPdf({
 
   const labelX = 14;
   const valueX = 55;
+  const lineGap = 5.5;
+  let infoY = 50;
 
   doc.setFont("helvetica", "bold");
-  doc.text("CLIENTE:", labelX, 50);
+  doc.text("CLIENTE:", labelX, infoY);
   doc.setFont("helvetica", "normal");
-  doc.text(client?.businessName || "-", valueX, 50);
+  doc.text(client?.businessName || "-", valueX, infoY);
+  infoY += lineGap;
 
   doc.setFont("helvetica", "bold");
-  doc.text("RAZÓN SOCIAL:", labelX, 56);
+  doc.text("RAZÓN SOCIAL:", labelX, infoY);
   doc.setFont("helvetica", "normal");
-  doc.text(client?.legalName || "-", valueX, 56);
+  doc.text(client?.legalName || "-", valueX, infoY);
+  infoY += lineGap;
 
   doc.setFont("helvetica", "bold");
-  doc.text("RFC:", labelX, 62);
+  doc.text("RFC:", labelX, infoY);
   doc.setFont("helvetica", "normal");
-  doc.text(client?.taxId || "-", valueX, 62);
+  doc.text(client?.taxId || "-", valueX, infoY);
+  infoY += lineGap;
 
   doc.setFont("helvetica", "bold");
-  doc.text("CONTACTO:", labelX, 68);
+  doc.text("CONTACTO:", labelX, infoY);
   doc.setFont("helvetica", "normal");
-  doc.text(contact?.fullName || "-", valueX, 68);
+  doc.text(contact?.fullName || "-", valueX, infoY);
+  infoY += lineGap;
 
   doc.setFont("helvetica", "bold");
-  doc.text("VENDEDOR:", labelX, 74);
+  doc.text("VENDEDOR:", labelX, infoY);
   doc.setFont("helvetica", "normal");
-  doc.text(employee?.fullName || "-", valueX, 74);
+  doc.text(employee?.fullName || "-", valueX, infoY);
+  infoY += lineGap;
 
   doc.setFont("helvetica", "bold");
-  doc.text("PUESTO:", labelX, 80);
+  doc.text("PUESTO:", labelX, infoY);
   doc.setFont("helvetica", "normal");
-  doc.text(employee?.position || "-", valueX, 80);
+  doc.text(employee?.position || "-", valueX, infoY);
+  infoY += lineGap;
 
   doc.setFont("helvetica", "bold");
-  doc.text("PROYECTO:", labelX, 86);
+  doc.text("PROYECTO:", labelX, infoY);
   doc.setFont("helvetica", "normal");
-  doc.text(quote.projectName || "-", valueX, 86);
+  doc.text(quote.projectName || "-", valueX, infoY);
 
   y = 94;
 
