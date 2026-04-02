@@ -40,10 +40,21 @@ export function exportQuoteToPdf({
 
   let y = 16;
 
-if (logoSrc) {
-  try {
-    doc.addImage(logoSrc, "PNG", 14, 10, 42, 28);
-  } catch {
+  // Logo más grande
+  if (logoSrc) {
+    try {
+      doc.addImage(logoSrc, "PNG", 14, 10, 55, 34);
+    } catch {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(22);
+      doc.text("PUNTO CERO", 14, y);
+      y += 8;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      doc.text("SOLUCIONES", 14, y);
+    }
+  } else {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(22);
     doc.text("PUNTO CERO", 14, y);
@@ -53,20 +64,30 @@ if (logoSrc) {
     doc.setFontSize(11);
     doc.text("SOLUCIONES", 14, y);
   }
-} else {
+
+  // Fecha y folio a la izquierda
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(22);
-  doc.text("PUNTO CERO", 14, y);
-  y += 8;
-
+  doc.setFontSize(10);
+  doc.text("FECHA:", 14, 50);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.text("SOLUCIONES", 14, y);
-}
+  doc.text(quote.date || "-", 30, 50);
 
-y = 40;
+  doc.setFont("helvetica", "bold");
+  doc.text("FOLIO:", 14, 56);
+  doc.setFont("helvetica", "normal");
+  doc.text(quote.folio || "-", 30, 56);
 
-  // Caja de datos del cliente / folio / fecha a la derecha
+  doc.setFont("helvetica", "bold");
+  doc.text("VENDEDOR:", 14, 62);
+  doc.setFont("helvetica", "normal");
+  doc.text(employee?.fullName || "-", 36, 62);
+
+  doc.setFont("helvetica", "bold");
+  doc.text("PUESTO:", 14, 68);
+  doc.setFont("helvetica", "normal");
+  doc.text(employee?.position || "-", 30, 68);
+
+  // Datos del cliente a la derecha
   const rightX = 120;
   let rightY = 18;
 
@@ -90,27 +111,9 @@ y = 40;
   rightY += 5;
 
   doc.setFont("helvetica", "bold");
-  doc.text("FECHA:", rightX, rightY);
-  doc.setFont("helvetica", "normal");
-  doc.text(quote.date || "-", rightX + 16, rightY);
-  rightY += 5;
-
-  doc.setFont("helvetica", "bold");
-  doc.text("FOLIO:", rightX, rightY);
-  doc.setFont("helvetica", "normal");
-  doc.text(quote.folio || "-", rightX + 16, rightY);
-  rightY += 5;
-
-  doc.setFont("helvetica", "bold");
   doc.text("CONTACTO:", rightX, rightY);
   doc.setFont("helvetica", "normal");
   doc.text(contact?.fullName || "-", rightX + 24, rightY);
-  rightY += 5;
-
-  doc.setFont("helvetica", "bold");
-  doc.text("VENDEDOR:", rightX, rightY);
-  doc.setFont("helvetica", "normal");
-  doc.text(employee?.fullName || "-", rightX + 24, rightY);
   rightY += 5;
 
   doc.setFont("helvetica", "bold");
@@ -118,14 +121,12 @@ y = 40;
   doc.setFont("helvetica", "normal");
   doc.text(quote.projectName || "-", rightX + 22, rightY);
 
-  y = Math.max(y, rightY + 8);
+  y = 78;
 
-  // Línea separadora
   doc.setDrawColor(80);
   doc.line(14, y, pageWidth - 14, y);
   y += 6;
 
-  // Tabla principal
   const rows = quote.items.map((item) => {
     const product = products.find((p) => p.id === item.productId);
     const concept = item.isFreeItem
@@ -169,8 +170,8 @@ y = 40;
       textColor: [20, 20, 20],
     },
     headStyles: {
-      fillColor: [220, 220, 220],
-      textColor: [40, 40, 40],
+      fillColor: [15, 39, 71],
+      textColor: [255, 255, 255],
       fontStyle: "bold",
       halign: "center",
     },
@@ -194,19 +195,15 @@ y = 40;
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
 
+  const subtotalBase = quote.subtotal + (quote.discountAmount || 0) - (quote.laborAmount || 0);
+
   doc.text("SUBTOTAL", labelX, totalsY);
-  doc.text(formatCurrency(quote.subtotal + (quote.discountAmount || 0) - (quote.laborAmount || 0), quote.currency), valueX, totalsY, {
+  doc.text(formatCurrency(subtotalBase, quote.currency), valueX, totalsY, {
     align: "right",
   });
   totalsY += 6;
 
-  doc.text("TASA DE IMPUESTOS", labelX, totalsY);
-  doc.text(`${quote.taxRatePercent.toFixed(2)}%`, valueX, totalsY, {
-    align: "right",
-  });
-  totalsY += 6;
-
-  doc.text("IMPUESTO A LAS VENTAS", labelX, totalsY);
+  doc.text(`IVA ${quote.taxRatePercent.toFixed(0)}%`, labelX, totalsY);
   doc.text(formatCurrency(quote.tax, quote.currency), valueX, totalsY, {
     align: "right",
   });
@@ -247,7 +244,6 @@ y = 40;
     totalsY += splitNotes.length * 4 + 10;
   }
 
-  // Firma
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.text("Atentamente,", 14, totalsY);
