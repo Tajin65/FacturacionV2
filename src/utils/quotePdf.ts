@@ -27,6 +27,10 @@ function formatNumber(value: number) {
   }).format(value || 0);
 }
 
+function safeText(value?: string) {
+  return value?.trim() || "-";
+}
+
 export function exportQuoteToPdf({
   quote,
   client,
@@ -38,231 +42,274 @@ export function exportQuoteToPdf({
   const doc = new jsPDF("p", "mm", "letter");
   const pageWidth = doc.internal.pageSize.getWidth();
 
-  let y = 16;
-
+  // ===== ENCABEZADO =====
   if (logoSrc) {
     try {
-      doc.addImage(logoSrc, "PNG", 14, 8, 38, 24);
+      // Más hacia el recuadro superior izquierdo como en tu ejemplo
+      doc.addImage(logoSrc, "PNG", 10, 8, 36, 22);
     } catch {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(20);
-      doc.text("PUNTO CERO", 14, y);
-      y += 7;
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      doc.text("SOLUCIONES", 14, y);
+      // fallback silencioso
     }
-  } else {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
-    doc.text("PUNTO CERO", 14, y);
-    y += 7;
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text("SOLUCIONES", 14, y);
   }
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.text(
+    "Muchas gracias por su interés en nuestros productos, de acuerdo con su solicitud, abajo encontrará la cotización correspondiente,",
+    14,
+    35
+  );
+  doc.text("cualquier duda, estamos a sus órdenes.", 14, 39);
+
+  // Bloque izquierdo cliente
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+
+  doc.text("Cliente:", 14, 49);
+  doc.setFont("helvetica", "normal");
+  doc.text(safeText(client?.businessName), 34, 49);
+
+  doc.setFont("helvetica", "bold");
+  doc.text("Dirección:", 14, 55);
+  doc.setFont("helvetica", "normal");
+  const fullAddress = [
+    client?.address,
+    client?.city,
+    client?.state,
+    client?.country,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  doc.text(safeText(fullAddress), 34, 55);
+
+  doc.setFont("helvetica", "bold");
+  doc.text("Atención:", 14, 61);
+  doc.setFont("helvetica", "normal");
+  doc.text(safeText(contact?.fullName), 34, 61);
+
+  doc.setFont("helvetica", "bold");
+  doc.text("Referencia:", 14, 67);
+  doc.setFont("helvetica", "normal");
+  doc.text(safeText(quote.projectName), 34, 67);
+
+  doc.setFont("helvetica", "bold");
+  doc.text("No. Cliente:", 14, 73);
+  doc.setFont("helvetica", "normal");
+  doc.text(safeText(client?.id?.slice(0, 4)), 34, 73);
+
+  // Bloque derecho fecha y folio
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text("COTIZACIÓN #", 145, 49);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(safeText(quote.folio), 145, 55);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
-  doc.text("FECHA:", 145, 18);
+  doc.text("Fecha:", 145, 63);
   doc.setFont("helvetica", "normal");
-  doc.text(quote.date || "-", 160, 18);
+  doc.text(safeText(quote.date), 158, 63);
 
-  doc.setFont("helvetica", "bold");
-  doc.text("FOLIO:", 145, 24);
-  doc.setFont("helvetica", "normal");
-  doc.text(quote.folio || "-", 160, 24);
+  // Línea separadora
+  doc.setDrawColor(120);
+  doc.line(14, 80, pageWidth - 14, 80);
 
-  const labelX = 14;
-  const valueX = 55;
-  const lineGap = 5;
-  let infoY = 50;
-
-  doc.setFont("helvetica", "bold");
-  doc.text("CLIENTE:", labelX, infoY);
-  doc.setFont("helvetica", "normal");
-  doc.text(client?.businessName || "-", valueX, infoY);
-  infoY += lineGap;
-
-  doc.setFont("helvetica", "bold");
-  doc.text("RAZÓN SOCIAL:", labelX, infoY);
-  doc.setFont("helvetica", "normal");
-  doc.text(client?.legalName || "-", valueX, infoY);
-  infoY += lineGap;
-
-  doc.setFont("helvetica", "bold");
-  doc.text("RFC:", labelX, infoY);
-  doc.setFont("helvetica", "normal");
-  doc.text(client?.taxId || "-", valueX, infoY);
-  infoY += lineGap;
-
-  doc.setFont("helvetica", "bold");
-  doc.text("CONTACTO:", labelX, infoY);
-  doc.setFont("helvetica", "normal");
-  doc.text(contact?.fullName || "-", valueX, infoY);
-  infoY += lineGap;
-
-  doc.setFont("helvetica", "bold");
-  doc.text("VENDEDOR:", labelX, infoY);
-  doc.setFont("helvetica", "normal");
-  doc.text(employee?.fullName || "-", valueX, infoY);
-  infoY += lineGap;
-
-  doc.setFont("helvetica", "bold");
-  doc.text("PUESTO:", labelX, infoY);
-  doc.setFont("helvetica", "normal");
-  doc.text(employee?.position || "-", valueX, infoY);
-  infoY += lineGap;
-
-  doc.setFont("helvetica", "bold");
-  doc.text("PROYECTO:", labelX, infoY);
-  doc.setFont("helvetica", "normal");
-  doc.text(quote.projectName || "-", valueX, infoY);
-
-  y = 94;
-
-  doc.setDrawColor(80);
-  doc.line(14, y, pageWidth - 14, y);
-  y += 6;
-
-  const rows = quote.items.map((item) => {
+  // ===== TABLA PRINCIPAL =====
+  const bodyRows = quote.items.map((item, index) => {
     const product = products.find((p) => p.id === item.productId);
+
+    const catalog = item.isFreeItem
+      ? "-"
+      : product?.partNumber || "-";
+
     const concept = item.isFreeItem
       ? item.freeItemName || "Producto libre"
       : product?.shortName || "Producto";
 
     const description = item.isFreeItem
       ? [concept, item.freeItemDescription].filter(Boolean).join(" - ")
-      : [product?.partNumber, concept].filter(Boolean).join(" - ");
-
-    const discount = item.perUnitDiscount || 0;
-    const taxBase = item.lineSubtotal * ((quote.taxRatePercent || 0) / 100);
+      : [
+          concept,
+          product?.model ? `MODELO ${product.model}` : "",
+        ]
+          .filter(Boolean)
+          .join(" / ");
 
     return [
+      String(index + 1),
+      catalog,
       String(item.quantity),
+      formatCurrency(item.unitPrice, quote.currency),
+      formatCurrency(item.lineSubtotal, quote.currency),
       description,
-      formatNumber(item.unitPrice),
-      formatNumber(discount),
-      formatNumber(taxBase),
-      formatNumber(item.lineSubtotal),
+      quote.currency,
     ];
   });
 
   autoTable(doc, {
-    startY: y,
+    startY: 84,
     head: [[
-      "CANTIDAD",
+      "PART.",
+      "CATALOGO",
+      "CANT.",
+      "PRECIO UNIT.",
+      "TOTAL DE LINEA",
       "DESCRIPCIÓN",
-      "PRECIO UNITARIO",
-      "DESCUENTO",
-      "IMPUESTOS",
-      "MONTO",
+      "MONEDA",
     ]],
-    body: rows,
+    body: bodyRows,
     theme: "grid",
     styles: {
-      fontSize: 8,
-      cellPadding: 2,
+      fontSize: 7.4,
+      cellPadding: 1.7,
       lineColor: [120, 120, 120],
       lineWidth: 0.2,
       textColor: [20, 20, 20],
+      valign: "top",
     },
     headStyles: {
       fillColor: [15, 39, 71],
       textColor: [255, 255, 255],
       fontStyle: "bold",
       halign: "center",
+      valign: "middle",
     },
     columnStyles: {
-      0: { cellWidth: 20, halign: "center" },
-      1: { cellWidth: 74 },
-      2: { cellWidth: 28, halign: "right" },
+      0: { cellWidth: 12, halign: "center" },
+      1: { cellWidth: 24, halign: "left" },
+      2: { cellWidth: 12, halign: "center" },
       3: { cellWidth: 24, halign: "right" },
-      4: { cellWidth: 24, halign: "right" },
-      5: { cellWidth: 24, halign: "right" },
+      4: { cellWidth: 26, halign: "right" },
+      5: { cellWidth: 75, halign: "left" },
+      6: { cellWidth: 18, halign: "center" },
+    },
+    didDrawPage: () => {
+      // footer corporativo
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.text(
+        "PUNTO CERO SOLUCIONES | PASEO DEL CONDADO 7, CORREGIDORA, QRO. | TEL: +524421713108",
+        14,
+        273
+      );
     },
   });
 
   const finalY =
-    (doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY || y + 10;
+    (doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY || 180;
 
+  // ===== TOTALES =====
   let totalsY = finalY + 8;
-  const labelTotals = 130;
-  const valueTotals = 178;
-
-  doc.setFontSize(8.5);
-  doc.setFont("helvetica", "normal");
+  const labelX = 132;
+  const valueX = 195;
 
   const subtotalBase =
     quote.subtotal + (quote.discountAmount || 0) - (quote.laborAmount || 0);
 
-  doc.text("SUBTOTAL", labelTotals, totalsY);
-  doc.text(formatCurrency(subtotalBase, quote.currency), valueTotals, totalsY, {
-    align: "right",
-  });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+
+  doc.text("SUBTOTAL", labelX, totalsY);
+  doc.text(formatCurrency(subtotalBase, quote.currency), valueX, totalsY, { align: "right" });
   totalsY += 6;
 
-  doc.text(`IVA ${quote.taxRatePercent.toFixed(0)}%`, labelTotals, totalsY);
-  doc.text(formatCurrency(quote.tax, quote.currency), valueTotals, totalsY, {
-    align: "right",
-  });
+  doc.text("IVA %", labelX, totalsY);
+  doc.text(`${quote.taxRatePercent.toFixed(2)}%`, valueX, totalsY, { align: "right" });
   totalsY += 6;
 
-  doc.text("DESCUENTO", labelTotals, totalsY);
-  doc.text(formatCurrency(quote.discountAmount || 0, quote.currency), valueTotals, totalsY, {
-    align: "right",
-  });
+  doc.text("IMPUESTO", labelX, totalsY);
+  doc.text(formatCurrency(quote.tax, quote.currency), valueX, totalsY, { align: "right" });
   totalsY += 6;
+
+  if ((quote.discountAmount || 0) > 0) {
+    doc.text("DESCUENTO", labelX, totalsY);
+    doc.text(formatCurrency(quote.discountAmount || 0, quote.currency), valueX, totalsY, {
+      align: "right",
+    });
+    totalsY += 6;
+  }
 
   if ((quote.laborAmount || 0) > 0) {
-    doc.text("MANO DE OBRA", labelTotals, totalsY);
-    doc.text(formatCurrency(quote.laborAmount || 0, quote.currency), valueTotals, totalsY, {
+    doc.text("MANO DE OBRA", labelX, totalsY);
+    doc.text(formatCurrency(quote.laborAmount || 0, quote.currency), valueX, totalsY, {
       align: "right",
     });
     totalsY += 6;
   }
 
   doc.setFont("helvetica", "bold");
-  doc.text("TOTAL", labelTotals, totalsY);
-  doc.text(formatCurrency(quote.total, quote.currency), valueTotals, totalsY, {
-    align: "right",
-  });
+  doc.text("TOTAL", labelX, totalsY);
+  doc.text(formatCurrency(quote.total, quote.currency), valueX, totalsY, { align: "right" });
 
-  totalsY += 12;
+  // ===== CONDICIONES =====
+  let notesY = totalsY + 10;
 
-  if (quote.notes) {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.text("Notas:", 14, totalsY);
-    totalsY += 5;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.text("PRECIOS SUJETOS A CAMBIO SIN PREVIO AVISO. VIGENCIA DE LA COTIZACIÓN 15 DÍAS.", 14, notesY);
 
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    const splitNotes = doc.splitTextToSize(quote.notes, 180);
-    doc.text(splitNotes, 14, totalsY);
-    totalsY += splitNotes.length * 4 + 10;
-  }
+  notesY += 8;
+
+  doc.text("CONDICIONES DE VENTA:", 14, notesY);
+  notesY += 5;
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.text("Atentamente,", 14, totalsY);
-  totalsY += 16;
+  doc.setFontSize(8);
+  doc.text("CRÉDITO: Crédito 15 Días", 14, notesY);
+  notesY += 5;
+  doc.text("ENVÍO: $0.00", 14, notesY);
+  notesY += 7;
+
+  doc.setFont("helvetica", "bold");
+  doc.text("NOTAS: Términos y Condiciones", 14, notesY);
+  notesY += 5;
+
+  const notesLines = [
+    "1.- La presente cotización es válida por 15 días naturales a partir de su fecha de emisión.",
+    "2.- Los precios están expresados en [MXN / USD] y no incluyen IVA, salvo que se indique expresamente lo contrario.",
+    "3.- El alcance se limita exclusivamente a los productos y/o servicios descritos en esta cotización.",
+    "4.- Los tiempos de entrega y/o ejecución son estimados y pueden variar por causas ajenas a Punto Cero Soluciones.",
+    "5.- Los productos cuentan con la garantía otorgada por el fabricante correspondiente.",
+    "6.- Los servicios cuentan con garantía limitada únicamente por defectos de ejecución.",
+    "7.- La aceptación de esta cotización implica la conformidad del cliente con estos términos y condiciones.",
+  ];
+
+  doc.setFont("helvetica", "normal");
+  notesLines.forEach((line) => {
+    const wrapped = doc.splitTextToSize(line, 180);
+    doc.text(wrapped, 14, notesY);
+    notesY += wrapped.length * 4.2 + 1;
+  });
+
+  // ===== FIRMA =====
+  notesY += 4;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text("A T E N T A M E N T E", 14, notesY);
+
+  notesY += 14;
 
   if (employee?.signatureImage) {
     try {
-      doc.addImage(employee.signatureImage, "PNG", 14, totalsY - 12, 40, 18);
+      doc.addImage(employee.signatureImage, "PNG", 14, notesY - 10, 34, 15);
     } catch {
-      // no romper si falla la firma
+      // sin romper
     }
   }
 
-  doc.setFont("helvetica", "bold");
-  doc.text(employee?.fullName || "-", 14, totalsY + 10);
+  notesY += 10;
 
   doc.setFont("helvetica", "normal");
-  doc.text(employee?.position || "-", 14, totalsY + 16);
+  doc.setFontSize(8.5);
+  doc.text(safeText(employee?.fullName), 14, notesY);
+  notesY += 5;
+  doc.text("-", 14, notesY);
+  notesY += 5;
+  doc.text("-", 14, notesY);
+  notesY += 5;
+  doc.text(safeText(employee?.position), 14, notesY);
 
   doc.save(`${quote.folio}.pdf`);
 }
