@@ -42,7 +42,7 @@ export function exportQuoteToPdf({
 
   if (logoSrc) {
     try {
-      doc.addImage(logoSrc, "PNG", 14, 10, 38, 24);
+      doc.addImage(logoSrc, "PNG", 14, 8, 38, 24);
     } catch {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(20);
@@ -77,7 +77,7 @@ export function exportQuoteToPdf({
 
   const labelX = 14;
   const valueX = 55;
-  const lineGap = 5.5;
+  const lineGap = 5;
   let infoY = 50;
 
   doc.setFont("helvetica", "bold");
