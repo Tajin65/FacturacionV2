@@ -80,39 +80,43 @@ export function exportQuoteToPdf({
   // Datos del cliente y comerciales del lado izquierdo
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
-  doc.text("CLIENTE:", 14, 50);
-  doc.setFont("helvetica", "normal");
-  doc.text(client?.businessName || "-", 32, 50);
+const labelX = 14;
+const valueX = 48;
 
-  doc.setFont("helvetica", "bold");
-  doc.text("RAZÓN SOCIAL:", 14, 56);
-  doc.setFont("helvetica", "normal");
-  doc.text(client?.legalName || "-", 38, 56);
+doc.setFont("helvetica", "bold");
+doc.text("CLIENTE:", labelX, 50);
+doc.setFont("helvetica", "normal");
+doc.text(client?.businessName || "-", valueX, 50);
 
-  doc.setFont("helvetica", "bold");
-  doc.text("RFC:", 14, 62);
-  doc.setFont("helvetica", "normal");
-  doc.text(client?.taxId || "-", 23, 62);
+doc.setFont("helvetica", "bold");
+doc.text("RAZÓN SOCIAL:", labelX, 56);
+doc.setFont("helvetica", "normal");
+doc.text(client?.legalName || "-", valueX, 56);
 
-  doc.setFont("helvetica", "bold");
-  doc.text("CONTACTO:", 14, 68);
-  doc.setFont("helvetica", "normal");
-  doc.text(contact?.fullName || "-", 32, 68);
+doc.setFont("helvetica", "bold");
+doc.text("RFC:", labelX, 62);
+doc.setFont("helvetica", "normal");
+doc.text(client?.taxId || "-", valueX, 62);
 
-  doc.setFont("helvetica", "bold");
-  doc.text("VENDEDOR:", 14, 74);
-  doc.setFont("helvetica", "normal");
-  doc.text(employee?.fullName || "-", 34, 74);
+doc.setFont("helvetica", "bold");
+doc.text("CONTACTO:", labelX, 68);
+doc.setFont("helvetica", "normal");
+doc.text(contact?.fullName || "-", valueX, 68);
 
-  doc.setFont("helvetica", "bold");
-  doc.text("PUESTO:", 14, 80);
-  doc.setFont("helvetica", "normal");
-  doc.text(employee?.position || "-", 28, 80);
+doc.setFont("helvetica", "bold");
+doc.text("VENDEDOR:", labelX, 74);
+doc.setFont("helvetica", "normal");
+doc.text(employee?.fullName || "-", valueX, 74);
 
-  doc.setFont("helvetica", "bold");
-  doc.text("PROYECTO:", 14, 86);
-  doc.setFont("helvetica", "normal");
-  doc.text(quote.projectName || "-", 33, 86);
+doc.setFont("helvetica", "bold");
+doc.text("PUESTO:", labelX, 80);
+doc.setFont("helvetica", "normal");
+doc.text(employee?.position || "-", valueX, 80);
+
+doc.setFont("helvetica", "bold");
+doc.text("PROYECTO:", labelX, 86);
+doc.setFont("helvetica", "normal");
+doc.text(quote.projectName || "-", valueX, 86);
 
   y = 94;
 
