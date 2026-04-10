@@ -192,10 +192,10 @@ export function exportQuoteToPdf({
       5: { cellWidth: 75, halign: "left" },
       6: { cellWidth: 18, halign: "center" },
     },
-    didDrawPage: (data) => {
-      drawHeader(data.pageNumber === 1);
-      drawFooter(data.pageNumber);
-    },
+      didDrawPage: (data) => {
+        drawHeader(data.pageNumber === 1);
+        drawFooter(data.pageNumber);
+      },
   });
 
   let currentY =
@@ -330,10 +330,7 @@ export function exportQuoteToPdf({
 
   // Redibuja footer con total de páginas
   const totalPages = doc.getNumberOfPages();
-  for (let page = 1; page <= totalPages; page += 1) {
-    doc.setPage(page);
-    drawFooter(page, totalPages);
-  }
+
 
   doc.save(`${quote.folio}.pdf`);
 }
