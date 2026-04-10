@@ -41,99 +41,105 @@ export function exportQuoteToPdf({
 }: ExportQuotePdfParams) {
   const doc = new jsPDF("p", "mm", "letter");
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
 
-  // ===== ENCABEZADO =====
-  if (logoSrc) {
-    try {
-      // Más hacia el recuadro superior izquierdo como en tu ejemplo
-      doc.addImage(logoSrc, "PNG", 10, 8, 36, 22);
-    } catch {
-      // fallback silencioso
+  const drawHeader = (isFirstPage: boolean) => {
+    if (isFirstPage && logoSrc) {
+      try {
+        doc.addImage(logoSrc, "PNG", 10, 8, 36, 22);
+      } catch {
+        // seguir sin romper
+      }
     }
-  }
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.text(
-    "Muchas gracias por su interés en nuestros productos, de acuerdo con su solicitud, abajo encontrará la cotización correspondiente,",
-    14,
-    35
-  );
-  doc.text("cualquier duda, estamos a sus órdenes.", 14, 39);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text(
+      "Muchas gracias por su interés en nuestros productos, de acuerdo con su solicitud, abajo encontrará la cotización correspondiente,",
+      14,
+      35
+    );
+    doc.text("cualquier duda, estamos a sus órdenes.", 14, 39);
 
-  // Bloque izquierdo cliente
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
 
-  doc.text("Cliente:", 14, 49);
-  doc.setFont("helvetica", "normal");
-  doc.text(safeText(client?.businessName), 34, 49);
+    doc.text("Cliente:", 14, 49);
+    doc.setFont("helvetica", "normal");
+    doc.text(safeText(client?.businessName), 34, 49);
 
-  doc.setFont("helvetica", "bold");
-  doc.text("Dirección:", 14, 55);
-  doc.setFont("helvetica", "normal");
-  const fullAddress = [
-    client?.address,
-    client?.city,
-    client?.state,
-    client?.country,
-  ]
-    .filter(Boolean)
-    .join(", ");
-  doc.text(safeText(fullAddress), 34, 55);
+    doc.setFont("helvetica", "bold");
+    doc.text("Dirección:", 14, 55);
+    doc.setFont("helvetica", "normal");
+    const fullAddress = [
+      client?.address,
+      client?.city,
+      client?.state,
+      client?.country,
+    ]
+      .filter(Boolean)
+      .join(", ");
+    doc.text(safeText(fullAddress), 34, 55);
 
-  doc.setFont("helvetica", "bold");
-  doc.text("Atención:", 14, 61);
-  doc.setFont("helvetica", "normal");
-  doc.text(safeText(contact?.fullName), 34, 61);
+    doc.setFont("helvetica", "bold");
+    doc.text("Atención:", 14, 61);
+    doc.setFont("helvetica", "normal");
+    doc.text(safeText(contact?.fullName), 34, 61);
 
-  doc.setFont("helvetica", "bold");
-  doc.text("Referencia:", 14, 67);
-  doc.setFont("helvetica", "normal");
-  doc.text(safeText(quote.projectName), 34, 67);
+    doc.setFont("helvetica", "bold");
+    doc.text("Referencia:", 14, 67);
+    doc.setFont("helvetica", "normal");
+    doc.text(safeText(quote.projectName), 34, 67);
 
-  doc.setFont("helvetica", "bold");
-  doc.text("No. Cliente:", 14, 73);
-  doc.setFont("helvetica", "normal");
-  doc.text(safeText(client?.id?.slice(0, 4)), 34, 73);
+    doc.setFont("helvetica", "bold");
+    doc.text("No. Cliente:", 14, 73);
+    doc.setFont("helvetica", "normal");
+    doc.text(safeText(client?.id?.slice(0, 4)), 34, 73);
 
-  // Bloque derecho fecha y folio
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.text("COTIZACIÓN #", 145, 49);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("COTIZACIÓN #", 145, 49);
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.text(safeText(quote.folio), 145, 55);
+    doc.setFont("helvetica", "normal");
+    doc.text(safeText(quote.folio), 145, 55);
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.text("Fecha:", 145, 63);
-  doc.setFont("helvetica", "normal");
-  doc.text(safeText(quote.date), 158, 63);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("Fecha:", 145, 63);
+    doc.setFont("helvetica", "normal");
+    doc.text(safeText(quote.date), 158, 63);
 
-  // Línea separadora
-  doc.setDrawColor(120);
-  doc.line(14, 80, pageWidth - 14, 80);
+    doc.setDrawColor(120);
+    doc.line(14, 80, pageWidth - 14, 80);
+  };
 
-  // ===== TABLA PRINCIPAL =====
+  const drawFooter = (pageNumber: number, totalPages?: number) => {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.text(
+      "PUNTO CERO SOLUCIONES | PASEO DEL CONDADO 7, CORREGIDORA, QRO. | TEL: +524421713108",
+      14,
+      pageHeight - 8
+    );
+    const pageText = totalPages
+      ? `Página ${pageNumber} de ${totalPages}`
+      : `Página ${pageNumber}`;
+    doc.text(pageText, pageWidth - 14, pageHeight - 8, { align: "right" });
+  };
+
+  drawHeader(true);
+
   const bodyRows = quote.items.map((item, index) => {
     const product = products.find((p) => p.id === item.productId);
 
-    const catalog = item.isFreeItem
-      ? "-"
-      : product?.partNumber || "-";
-
+    const catalog = item.isFreeItem ? "-" : product?.partNumber || "-";
     const concept = item.isFreeItem
       ? item.freeItemName || "Producto libre"
       : product?.shortName || "Producto";
 
     const description = item.isFreeItem
       ? [concept, item.freeItemDescription].filter(Boolean).join(" - ")
-      : [
-          concept,
-          product?.model ? `MODELO ${product.model}` : "",
-        ]
+      : [concept, product?.model ? `MODELO ${product.model}` : ""]
           .filter(Boolean)
           .join(" / ");
 
@@ -161,9 +167,10 @@ export function exportQuoteToPdf({
     ]],
     body: bodyRows,
     theme: "grid",
+    margin: { left: 14, right: 14, top: 84, bottom: 22 },
     styles: {
       fontSize: 7.4,
-      cellPadding: 1.7,
+      cellPadding: 1.6,
       lineColor: [120, 120, 120],
       lineWidth: 0.2,
       textColor: [20, 20, 20],
@@ -185,23 +192,22 @@ export function exportQuoteToPdf({
       5: { cellWidth: 75, halign: "left" },
       6: { cellWidth: 18, halign: "center" },
     },
-    didDrawPage: () => {
-      // footer corporativo
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7);
-      doc.text(
-        "PUNTO CERO SOLUCIONES | PASEO DEL CONDADO 7, CORREGIDORA, QRO. | TEL: +524421713108",
-        14,
-        273
-      );
+    didDrawPage: (data) => {
+      drawHeader(data.pageNumber === 1);
+      drawFooter(data.pageNumber);
     },
   });
 
-  const finalY =
+  let currentY =
     (doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY || 180;
 
-  // ===== TOTALES =====
-  let totalsY = finalY + 8;
+  if (currentY > 205) {
+    doc.addPage();
+    drawFooter(doc.getNumberOfPages());
+    currentY = 20;
+  }
+
+  let totalsY = currentY + 8;
   const labelX = 132;
   const valueX = 195;
 
@@ -212,15 +218,21 @@ export function exportQuoteToPdf({
   doc.setFontSize(8.5);
 
   doc.text("SUBTOTAL", labelX, totalsY);
-  doc.text(formatCurrency(subtotalBase, quote.currency), valueX, totalsY, { align: "right" });
+  doc.text(formatCurrency(subtotalBase, quote.currency), valueX, totalsY, {
+    align: "right",
+  });
   totalsY += 6;
 
   doc.text("IVA %", labelX, totalsY);
-  doc.text(`${quote.taxRatePercent.toFixed(2)}%`, valueX, totalsY, { align: "right" });
+  doc.text(`${quote.taxRatePercent.toFixed(2)}%`, valueX, totalsY, {
+    align: "right",
+  });
   totalsY += 6;
 
   doc.text("IMPUESTO", labelX, totalsY);
-  doc.text(formatCurrency(quote.tax, quote.currency), valueX, totalsY, { align: "right" });
+  doc.text(formatCurrency(quote.tax, quote.currency), valueX, totalsY, {
+    align: "right",
+  });
   totalsY += 6;
 
   if ((quote.discountAmount || 0) > 0) {
@@ -241,14 +253,19 @@ export function exportQuoteToPdf({
 
   doc.setFont("helvetica", "bold");
   doc.text("TOTAL", labelX, totalsY);
-  doc.text(formatCurrency(quote.total, quote.currency), valueX, totalsY, { align: "right" });
+  doc.text(formatCurrency(quote.total, quote.currency), valueX, totalsY, {
+    align: "right",
+  });
 
-  // ===== CONDICIONES =====
   let notesY = totalsY + 10;
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
-  doc.text("PRECIOS SUJETOS A CAMBIO SIN PREVIO AVISO. VIGENCIA DE LA COTIZACIÓN 15 DÍAS.", 14, notesY);
+  doc.text(
+    "PRECIOS SUJETOS A CAMBIO SIN PREVIO AVISO. VIGENCIA DE LA COTIZACIÓN 15 DÍAS.",
+    14,
+    notesY
+  );
 
   notesY += 8;
 
@@ -283,8 +300,8 @@ export function exportQuoteToPdf({
     notesY += wrapped.length * 4.2 + 1;
   });
 
-  // ===== FIRMA =====
   notesY += 4;
+
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.text("A T E N T A M E N T E", 14, notesY);
@@ -295,7 +312,7 @@ export function exportQuoteToPdf({
     try {
       doc.addImage(employee.signatureImage, "PNG", 14, notesY - 10, 34, 15);
     } catch {
-      // sin romper
+      // no romper
     }
   }
 
@@ -310,6 +327,13 @@ export function exportQuoteToPdf({
   doc.text("-", 14, notesY);
   notesY += 5;
   doc.text(safeText(employee?.position), 14, notesY);
+
+  // Redibuja footer con total de páginas
+  const totalPages = doc.getNumberOfPages();
+  for (let page = 1; page <= totalPages; page += 1) {
+    doc.setPage(page);
+    drawFooter(page, totalPages);
+  }
 
   doc.save(`${quote.folio}.pdf`);
 }
