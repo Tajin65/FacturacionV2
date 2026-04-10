@@ -42,6 +42,8 @@ export type ProductFormState = {
   description: string;
 };
 
+export type EmployeeRole = "admin" | "sales" | "viewer";
+
 export type Employee = {
   id: string;
   fullName: string;
@@ -51,6 +53,8 @@ export type Employee = {
   phone: string;
   signatureText: string;
   signatureImage: string;
+  role: EmployeeRole;
+  canEditQuoteTerms: boolean;
 };
 
 export type EmployeeFormState = {
@@ -62,6 +66,8 @@ export type EmployeeFormState = {
   phone: string;
   signatureText: string;
   signatureImage: string;
+  role: EmployeeRole;
+  canEditQuoteTerms: boolean;
 };
 
 export type Client = {
@@ -165,4 +171,12 @@ export type QuoteFormState = {
   status: QuoteStatus;
   discountAmountInput: string;
   laborAmountInput: string;
+};
+
+export type AppSettings = {
+  quoteTermsAndConditions: string;
+};
+
+export type CurrentSession = {
+  employeeId: string;
 };
