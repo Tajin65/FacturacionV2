@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { SectionCard } from "../components/SectionCard";
 import { EMPLOYEES_STORAGE_KEY } from "../data/storageKeys";
-import type { Employee, EmployeeFormState } from "../types/models";
+import type { Employee, EmployeeFormState, EmployeeRole } from "../types/models";
 
 const blankEmployee: EmployeeFormState = {
   id: "",
@@ -12,6 +12,8 @@ const blankEmployee: EmployeeFormState = {
   phone: "",
   signatureText: "",
   signatureImage: "",
+  role: "sales",
+  canEditQuoteTerms: false,
 };
 
 export default function EmployeesModule() {
@@ -45,6 +47,8 @@ export default function EmployeesModule() {
         employee.email,
         employee.phone,
         employee.signatureText,
+        employee.role,
+        employee.canEditQuoteTerms ? "permiso terminos" : "",
       ]
         .join(" ")
         .toLowerCase()
@@ -72,6 +76,8 @@ export default function EmployeesModule() {
       phone: employeeForm.phone.trim(),
       signatureText: employeeForm.signatureText.trim(),
       signatureImage: employeeForm.signatureImage,
+      role: employeeForm.role,
+      canEditQuoteTerms: employeeForm.canEditQuoteTerms,
     };
 
     if (editingEmployeeId) {
@@ -95,6 +101,8 @@ export default function EmployeesModule() {
       phone: employee.phone,
       signatureText: employee.signatureText,
       signatureImage: employee.signatureImage || "",
+      role: employee.role || "sales",
+      canEditQuoteTerms: employee.canEditQuoteTerms || false,
     });
     setEditingEmployeeId(employee.id);
   }
@@ -129,6 +137,19 @@ export default function EmployeesModule() {
       }));
     };
     reader.readAsDataURL(file);
+  }
+
+  function roleLabel(role: EmployeeRole) {
+    switch (role) {
+      case "admin":
+        return "Administrador";
+      case "sales":
+        return "Ventas";
+      case "viewer":
+        return "Consulta";
+      default:
+        return role;
+    }
   }
 
   return (
@@ -191,6 +212,39 @@ export default function EmployeesModule() {
                 setEmployeeForm((prev) => ({ ...prev, phone: e.target.value }))
               }
             />
+          </div>
+
+          <div className="field">
+            <label>Rol</label>
+            <select
+              value={employeeForm.role}
+              onChange={(e) =>
+                setEmployeeForm((prev) => ({
+                  ...prev,
+                  role: e.target.value as EmployeeRole,
+                }))
+              }
+            >
+              <option value="admin">Administrador</option>
+              <option value="sales">Ventas</option>
+              <option value="viewer">Consulta</option>
+            </select>
+          </div>
+
+          <div className="field" style={{ display: "flex", alignItems: "end" }}>
+            <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <input
+                type="checkbox"
+                checked={employeeForm.canEditQuoteTerms}
+                onChange={(e) =>
+                  setEmployeeForm((prev) => ({
+                    ...prev,
+                    canEditQuoteTerms: e.target.checked,
+                  }))
+                }
+              />
+              Puede editar términos y condiciones
+            </label>
           </div>
 
           <div className="field" style={{ gridColumn: "1 / -1" }}>
@@ -265,7 +319,7 @@ export default function EmployeesModule() {
             <label>Buscar</label>
             <input
               value={employeeSearch}
-              placeholder="Buscar por nombre, iniciales, cargo o email"
+              placeholder="Buscar por nombre, iniciales, cargo, email o rol"
               onChange={(e) => setEmployeeSearch(e.target.value)}
             />
           </div>
@@ -278,6 +332,8 @@ export default function EmployeesModule() {
                 <th>Nombre</th>
                 <th>Iniciales</th>
                 <th>Cargo</th>
+                <th>Rol</th>
+                <th>Permiso términos</th>
                 <th>Email</th>
                 <th>Teléfono</th>
                 <th>Firma texto</th>
@@ -288,7 +344,7 @@ export default function EmployeesModule() {
             <tbody>
               {filteredEmployees.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="empty-state">
+                  <td colSpan={10} className="empty-state">
                     Todavía no hay empleados registrados.
                   </td>
                 </tr>
@@ -298,6 +354,8 @@ export default function EmployeesModule() {
                     <td>{employee.fullName}</td>
                     <td>{employee.initials}</td>
                     <td>{employee.position}</td>
+                    <td>{roleLabel(employee.role)}</td>
+                    <td>{employee.canEditQuoteTerms ? "Sí" : "No"}</td>
                     <td>{employee.email}</td>
                     <td>{employee.phone}</td>
                     <td>{employee.signatureText}</td>
