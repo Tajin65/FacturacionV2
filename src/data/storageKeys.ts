@@ -3,3 +3,5 @@ export const EMPLOYEES_STORAGE_KEY = "facturacionv2_employees_v1";
 export const CLIENTS_STORAGE_KEY = "facturacionv2_clients_v1";
 export const CONTACTS_STORAGE_KEY = "facturacionv2_contacts_v1";
 export const QUOTES_STORAGE_KEY = "facturacionv2_quotes_v1";
+export const APP_SETTINGS_STORAGE_KEY = "facturacionv2_app_settings_v1";
+export const CURRENT_SESSION_STORAGE_KEY = "facturacionv2_current_session_v1";
